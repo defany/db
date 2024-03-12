@@ -3,8 +3,8 @@ package postgres
 import (
 	"context"
 	"fmt"
-	"github.com/defany/auth-service/app/pkg/logger/sl"
 	"github.com/defany/db/pkg/retry"
+	"github.com/defany/slogger/pkg/logger/sl"
 	"log/slog"
 	"time"
 
