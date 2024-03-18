@@ -3,10 +3,11 @@ package postgres
 import (
 	"context"
 	"fmt"
-	"github.com/defany/db/pkg/retry"
-	"github.com/defany/slogger/pkg/logger/sl"
 	"log/slog"
 	"time"
+
+	"github.com/defany/db/pkg/retry"
+	"github.com/defany/slogger/pkg/logger/sl"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -83,7 +84,7 @@ func NewClient(ctx context.Context, log *slog.Logger, cfg *Config) (pool *pgxpoo
 			return err
 		}
 
-		err = pool.Ping(ctx)
+		err = pool.Ping(context.Background())
 		if err != nil {
 			log.Error("ping to postgres failed...", sl.ErrAttr(err))
 		}
