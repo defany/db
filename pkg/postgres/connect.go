@@ -10,6 +10,7 @@ import (
 	"github.com/defany/slogger/pkg/logger/sl"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5"
 )
 
 const (
@@ -26,6 +27,8 @@ type Config struct {
 
 	maxConnAttempts int
 	retryConnDelay  time.Duration
+
+	tracer pgx.QueryTracer
 }
 
 func NewConfig(username string, password string, host string, port string, database string) *Config {
@@ -61,6 +64,12 @@ func (c *Config) WithRetryConnDelay(delay time.Duration) *Config {
 	return c
 }
 
+func (c *Config) WithTracer(tracer pgx.QueryTracer) *Config {
+	c.tracer = tracer
+
+	return c
+}
+
 func NewClient(ctx context.Context, log *slog.Logger, cfg *Config) (pool *pgxpool.Pool, err error) {
 	dsn := cfg.dsn()
 
@@ -76,6 +85,8 @@ func NewClient(ctx context.Context, log *slog.Logger, cfg *Config) (pool *pgxpoo
 
 			return err
 		}
+
+		pgxCfg.ConnConfig.Tracer = cfg.tracer
 
 		pool, err = pgxpool.NewWithConfig(ctx, pgxCfg)
 		if err != nil {
