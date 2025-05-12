@@ -2,6 +2,8 @@ package postgres
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	errs "errors"
 	"fmt"
 
@@ -31,6 +33,7 @@ type Tx interface {
 }
 
 type txKey struct{}
+type txQueryKey struct{}
 
 type TxManager interface {
 	ReadCommitted(ctx context.Context, handler Handler) error
@@ -94,11 +97,29 @@ func (t *txManager) ReadCommitted(ctx context.Context, handler Handler) error {
 }
 
 func InjectTX(ctx context.Context, tx Tx) context.Context {
-	return context.WithValue(ctx, txKey{}, tx)
+	ctx = context.WithValue(ctx, txKey{}, tx)
+
+	ctx = context.WithValue(ctx, txQueryKey{}, generateShortID())
+
+	return ctx
 }
 
 func ExtractTX(ctx context.Context) (Tx, bool) {
 	tx, ok := ctx.Value(txKey{}).(Tx)
 
 	return tx, ok
+}
+
+func ExtractTxQueryKey(ctx context.Context) (string, bool) {
+	key, ok := ctx.Value(txQueryKey{}).(string)
+
+	return key, ok
+}
+
+func generateShortID() string {
+	var b [4]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "errid"
+	}
+	return hex.EncodeToString(b[:])
 }
