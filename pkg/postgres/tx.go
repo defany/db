@@ -38,6 +38,7 @@ type txQueryKey struct{}
 
 type TxManager interface {
 	ReadCommitted(ctx context.Context, handler Handler) error
+	RepeatableRead(ctx context.Context, retryAmount uint, handler Handler) error
 }
 
 type Handler func(ctx context.Context) error
