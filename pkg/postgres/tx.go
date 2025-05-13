@@ -7,6 +7,7 @@ import (
 	errs "errors"
 	"fmt"
 
+	slerr "github.com/defany/slogger/pkg/err"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/pkg/errors"
@@ -94,6 +95,31 @@ func (t *txManager) ReadCommitted(ctx context.Context, handler Handler) error {
 	}
 
 	return t.tx(ctx, opts, handler)
+}
+
+// RepeatableRead
+// retry amount is an amount of times when handler will be executed again due to concurrent access error
+func (t *txManager) RepeatableRead(ctx context.Context, retryAmount uint, handler Handler) error {
+	opts := pgx.TxOptions{
+		IsoLevel: pgx.RepeatableRead,
+	}
+
+	var err error
+	for attempt := uint(0); attempt <= retryAmount; attempt++ {
+		err = t.tx(ctx, opts, handler)
+		if err == nil {
+			return nil
+		}
+
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "40001" {
+			continue
+		}
+
+		return slerr.WithSource(err)
+	}
+
+	return slerr.WithSource(err)
 }
 
 func InjectTX(ctx context.Context, tx Tx) context.Context {
