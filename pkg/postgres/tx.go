@@ -39,6 +39,7 @@ type txQueryKey struct{}
 type TxManager interface {
 	ReadCommitted(ctx context.Context, handler Handler) error
 	RepeatableRead(ctx context.Context, retryAmount uint, handler Handler) error
+	Serializable(ctx context.Context, retryAmount uint, handler Handler) error
 }
 
 type Handler func(ctx context.Context) error
@@ -113,7 +114,30 @@ func (t *txManager) RepeatableRead(ctx context.Context, retryAmount uint, handle
 		}
 
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "40001" {
+		if errors.As(err, &pgErr) && (pgErr.Code == "40001" || pgErr.Code == "40P01") {
+			continue
+		}
+
+		return slerr.WithSource(err)
+	}
+
+	return slerr.WithSource(err)
+}
+
+func (t *txManager) Serializable(ctx context.Context, retryAmount uint, handler Handler) error {
+	opts := pgx.TxOptions{
+		IsoLevel: pgx.Serializable,
+	}
+
+	var err error
+	for attempt := uint(0); attempt <= retryAmount; attempt++ {
+		err = t.tx(ctx, opts, handler)
+		if err == nil {
+			return nil
+		}
+
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && (pgErr.Code == "40001" || pgErr.Code == "40P01") {
 			continue
 		}
 
