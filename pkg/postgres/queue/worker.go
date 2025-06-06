@@ -2,12 +2,15 @@ package queue
 
 import (
 	"context"
+	"strconv"
+	"strings"
 
 	"github.com/defany/db/pkg/postgres"
 	slerr "github.com/defany/slogger/pkg/err"
 	"github.com/defany/slogger/pkg/logger/sl"
 	"github.com/gookit/goutil/arrutil"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
 )
@@ -20,10 +23,11 @@ type Worker[T river.JobArgs] interface {
 
 type Repository[T river.JobArgs] struct {
 	river *river.Client[pgx.Tx]
+	db    *pgxpool.Pool
 }
 
-func New[T river.JobArgs](river *river.Client[pgx.Tx]) *Repository[T] {
-	return &Repository[T]{river: river}
+func New[T river.JobArgs](river *river.Client[pgx.Tx], db *pgxpool.Pool) *Repository[T] {
+	return &Repository[T]{river: river, db: db}
 }
 
 func (r *Repository[T]) Put(ctx context.Context, args T) (int64, error) {
@@ -82,14 +86,28 @@ func (r *Repository[T]) PutBatch(ctx context.Context, args ...T) ([]int64, error
 }
 
 func (r *Repository[T]) JobStatuses(ctx context.Context, ids ...int64) ([]JobStatus, error) {
-	params := river.NewJobListParams().IDs(ids...)
+	q := `select id, state from river_job where id in ($1)`
 
-	jobs, err := r.river.JobList(ctx, params)
+	parsedIds := arrutil.Map(ids, func(input int64) (target string, find bool) {
+		return strconv.Itoa(int(input)), true
+	})
+
+	rows, err := r.db.Query(ctx, q, strings.Join(parsedIds, ","))
 	if err != nil {
 		return nil, slerr.WithSource(err)
 	}
 
-	statuses := arrutil.Map(jobs.Jobs, func(input *rivertype.JobRow) (target JobStatus, find bool) {
+	type job struct {
+		ID    int64              `db:"id"`
+		State rivertype.JobState `db:"state"`
+	}
+
+	jobs, err := pgx.CollectRows(rows, pgx.RowToStructByNameLax[job])
+	if err != nil {
+		return nil, slerr.WithSource(err)
+	}
+
+	statuses := arrutil.Map(jobs, func(input job) (target JobStatus, find bool) {
 		return JobStatus{
 			JobID:  input.ID,
 			Status: input.State,
