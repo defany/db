@@ -2,8 +2,6 @@ package queue
 
 import (
 	"context"
-	"strconv"
-	"strings"
 
 	"github.com/defany/db/pkg/postgres"
 	slerr "github.com/defany/slogger/pkg/err"
@@ -86,13 +84,9 @@ func (r *Repository[T]) PutBatch(ctx context.Context, args ...T) ([]int64, error
 }
 
 func (r *Repository[T]) JobStatuses(ctx context.Context, ids ...int64) ([]JobStatus, error) {
-	q := `select id, state from river_job where id in ($1)`
+	q := `select id, state from river_job where id = any($1)`
 
-	parsedIds := arrutil.Map(ids, func(input int64) (target string, find bool) {
-		return strconv.Itoa(int(input)), true
-	})
-
-	rows, err := r.db.Query(ctx, q, strings.Join(parsedIds, ","))
+	rows, err := r.db.Query(ctx, q, ids)
 	if err != nil {
 		return nil, slerr.WithSource(err)
 	}
