@@ -84,7 +84,7 @@ func (r *Repository[T]) PutBatch(ctx context.Context, args ...T) ([]int64, error
 }
 
 func (r *Repository[T]) JobStatuses(ctx context.Context, ids ...int64) ([]JobStatus, error) {
-	q := `select id, state from river_job where id = any($1)`
+	q := `select id, state from river_job where id = any($1::bigint[])`
 
 	rows, err := r.db.Query(ctx, q, ids)
 	if err != nil {
