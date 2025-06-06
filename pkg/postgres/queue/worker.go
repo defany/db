@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/defany/db/pkg/postgres"
+	slerr "github.com/defany/slogger/pkg/err"
 	"github.com/defany/slogger/pkg/logger/sl"
 	"github.com/gookit/goutil/arrutil"
 	"github.com/jackc/pgx/v5"
@@ -14,6 +15,7 @@ import (
 type Worker[T river.JobArgs] interface {
 	Put(ctx context.Context, args T) (int64, error)
 	PutBatch(ctx context.Context, args ...T) ([]int64, error)
+	JobStatuses(ctx context.Context, ids ...int64) ([]JobStatus, error)
 }
 
 type Repository[T river.JobArgs] struct {
@@ -77,4 +79,22 @@ func (r *Repository[T]) PutBatch(ctx context.Context, args ...T) ([]int64, error
 	})
 
 	return jobIds, nil
+}
+
+func (r *Repository[T]) JobStatuses(ctx context.Context, ids ...int64) ([]JobStatus, error) {
+	params := river.NewJobListParams().IDs(ids...)
+
+	jobs, err := r.river.JobList(ctx, params)
+	if err != nil {
+		return nil, slerr.WithSource(err)
+	}
+
+	statuses := arrutil.Map(jobs.Jobs, func(input *rivertype.JobRow) (target JobStatus, find bool) {
+		return JobStatus{
+			JobID:  input.ID,
+			Status: input.State,
+		}, true
+	})
+
+	return statuses, nil
 }
