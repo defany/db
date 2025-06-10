@@ -80,7 +80,7 @@ func (c *Config) WithHealthCheckPeriod(d time.Duration) *Config {
 }
 
 func (c *Config) WithAcquireTimeout(d time.Duration) *Config {
-	c.AcquireTimeout = &d
+	c.AcquireTimeout = d
 	return c
 }
 
@@ -127,7 +127,7 @@ func NewClient(ctx context.Context, log *slog.Logger, cfg *Config) (pool *pgxpoo
 			pgxCfg.MaxConns = *cfg.ConnAmount
 		}
 
-		if pgxCfg.MinConns != nil {
+		if cfg.MinConnAmount != nil {
 			pgxCfg.MinConns = *cfg.MinConnAmount
 		}
 
