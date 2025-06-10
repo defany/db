@@ -9,8 +9,8 @@ import (
 	"github.com/defany/db/pkg/retry"
 	"github.com/defany/slogger/pkg/logger/sl"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -19,11 +19,12 @@ const (
 )
 
 type Config struct {
-	Username string
-	Password string
-	Host     string
-	Port     string
-	Database string
+	Username   string
+	Password   string
+	Host       string
+	Port       string
+	Database   string
+	ConnAmount int32
 
 	maxConnAttempts int
 	retryConnDelay  time.Duration
@@ -50,6 +51,12 @@ func (c *Config) dsn() string {
 		c.Username, c.Password,
 		c.Host, c.Port, c.Database,
 	)
+}
+
+func (c *Config) WithConnAmount(amount int32) *Config {
+	c.ConnAmount = amount
+
+	return c
 }
 
 func (c *Config) WithMaxConnAttempts(attempts int) *Config {
@@ -87,6 +94,8 @@ func NewClient(ctx context.Context, log *slog.Logger, cfg *Config) (pool *pgxpoo
 		}
 
 		pgxCfg.ConnConfig.Tracer = cfg.tracer
+
+		pgxCfg.MaxConns = cfg.ConnAmount
 
 		pool, err = pgxpool.NewWithConfig(ctx, pgxCfg)
 		if err != nil {
