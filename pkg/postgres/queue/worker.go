@@ -21,6 +21,13 @@ var (
 
 type Options struct {
 	ScheduledAt time.Time
+	MaxAttempts int
+	Metadata    []byte
+	Pending     bool
+	Priority    int
+	Queue       string
+	Tags        []string
+	UniqueOpts  river.UniqueOpts
 }
 
 type Worker[T river.JobArgs] interface {
