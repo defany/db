@@ -2,6 +2,7 @@ package queue
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/defany/db/pkg/postgres"
@@ -11,6 +12,11 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
+)
+
+var (
+	ErrJobIdsNotProvided = fmt.Errorf("job ids not provided")
+	ErrJobNotFound       = fmt.Errorf("job not found")
 )
 
 type Options struct {
@@ -23,6 +29,8 @@ type Worker[T river.JobArgs] interface {
 	PutWithOpts(ctx context.Context, options Options, args T) (int64, error)
 	PutBatchWithOpts(ctx context.Context, options Options, args ...T) ([]int64, error)
 	JobStatuses(ctx context.Context, ids ...int64) ([]JobStatus, error)
+	FetchJobs(ctx context.Context, ids ...int64) ([]*rivertype.JobRow, error)
+	FetchJob(ctx context.Context, id int64) (*rivertype.JobRow, error)
 }
 
 type Repository[T river.JobArgs] struct {
@@ -151,6 +159,10 @@ func (r *Repository[T]) PutBatchWithOpts(ctx context.Context, options Options, a
 }
 
 func (r *Repository[T]) JobStatuses(ctx context.Context, ids ...int64) ([]JobStatus, error) {
+	if len(ids) == 0 {
+		return nil, ErrJobIdsNotProvided
+	}
+
 	params := river.NewJobListParams().IDs(ids...)
 
 	jobs, err := r.river.JobList(ctx, params)
@@ -166,4 +178,36 @@ func (r *Repository[T]) JobStatuses(ctx context.Context, ids ...int64) ([]JobSta
 	})
 
 	return statuses, nil
+}
+
+func (r *Repository[T]) FetchJobs(ctx context.Context, ids ...int64) ([]*rivertype.JobRow, error) {
+	if len(ids) == 0 {
+		return nil, ErrJobIdsNotProvided
+	}
+
+	params := river.NewJobListParams().IDs(ids...)
+
+	jobs, err := r.river.JobList(ctx, params)
+	if err != nil {
+		return nil, slerr.WithSource(err)
+	}
+
+	if jobs == nil {
+		return nil, nil
+	}
+
+	return jobs.Jobs, nil
+}
+
+func (r *Repository[T]) FetchJob(ctx context.Context, id int64) (*rivertype.JobRow, error) {
+	jobs, err := r.FetchJobs(ctx, id)
+	if err != nil {
+		return nil, slerr.WithSource(err)
+	}
+
+	if len(jobs) == 0 {
+		return nil, ErrJobNotFound
+	}
+
+	return jobs[0], nil
 }
