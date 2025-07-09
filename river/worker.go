@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/defany/db/v2/postgres"
+	txman "github.com/defany/db/v2/tx_manager"
 	slerr "github.com/defany/slogger/pkg/err"
 	"github.com/defany/slogger/pkg/logger/sl"
 	"github.com/gookit/goutil/arrutil"
@@ -49,7 +49,7 @@ func New[T river.JobArgs](river *river.Client[pgx.Tx]) *Repository[T] {
 }
 
 func (r *Repository[T]) Put(ctx context.Context, args T) (int64, error) {
-	tx, ok := postgres.ExtractTX(ctx)
+	tx, ok := txman.ExtractTX(ctx)
 	if ok {
 		out, err := r.river.InsertTx(ctx, tx, args, nil)
 		if err != nil {
@@ -77,7 +77,7 @@ func (r *Repository[T]) PutBatch(ctx context.Context, args ...T) ([]int64, error
 		})
 	}
 
-	tx, ok := postgres.ExtractTX(ctx)
+	tx, ok := txman.ExtractTX(ctx)
 	if ok {
 		out, err := r.river.InsertManyTx(ctx, tx, insertParams)
 		if err != nil {
@@ -104,7 +104,7 @@ func (r *Repository[T]) PutBatch(ctx context.Context, args ...T) ([]int64, error
 }
 
 func (r *Repository[T]) PutWithOpts(ctx context.Context, options Options, args T) (int64, error) {
-	tx, ok := postgres.ExtractTX(ctx)
+	tx, ok := txman.ExtractTX(ctx)
 	if ok {
 		out, err := r.river.InsertTx(ctx, tx, args, &river.InsertOpts{
 			ScheduledAt: options.ScheduledAt,
@@ -139,7 +139,7 @@ func (r *Repository[T]) PutBatchWithOpts(ctx context.Context, options Options, a
 		})
 	}
 
-	tx, ok := postgres.ExtractTX(ctx)
+	tx, ok := txman.ExtractTX(ctx)
 	if ok {
 		out, err := r.river.InsertManyTx(ctx, tx, insertParams)
 		if err != nil {
