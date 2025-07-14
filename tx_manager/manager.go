@@ -2,17 +2,21 @@ package txman
 
 import (
 	"context"
-	"crypto/rand"
+	crand "crypto/rand"
 	"encoding/hex"
 	"errors"
 	errs "errors"
 	"fmt"
+	mrand "math/rand"
+	"time"
 
 	slerr "github.com/defany/slogger/pkg/err"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	pkgerrors "github.com/pkg/errors"
 )
+
+const baseBackoff = 10 * time.Millisecond
 
 type Tx interface {
 	Commit(ctx context.Context) error
@@ -43,9 +47,10 @@ type GenericHandler[T any] func(context.Context) (T, error)
 
 type TxOption func(*TxConfig)
 
-func WithRetry(n uint) TxOption           { return func(c *TxConfig) { c.Retry = n } }
-func WithIso(lvl pgx.TxIsoLevel) TxOption { return func(c *TxConfig) { c.IsoLevel = lvl } }
-func ReadOnly(on bool) TxOption           { return func(c *TxConfig) { c.ReadOnly = on } }
+func WithRetry(n uint) TxOption               { return func(c *TxConfig) { c.Retry = n } }
+func WithIso(lvl pgx.TxIsoLevel) TxOption     { return func(c *TxConfig) { c.IsoLevel = lvl } }
+func ReadOnly(on bool) TxOption               { return func(c *TxConfig) { c.ReadOnly = on } }
+func WithMaxBackoff(d time.Duration) TxOption { return func(c *TxConfig) { c.MaxBackoff = d } }
 
 func New(db Postgres) TxManager {
 	return &txManager{db: db}
@@ -86,9 +91,10 @@ type txManager struct {
 }
 
 type TxConfig struct {
-	IsoLevel pgx.TxIsoLevel
-	Retry    uint
-	ReadOnly bool
+	IsoLevel   pgx.TxIsoLevel
+	Retry      uint
+	ReadOnly   bool
+	MaxBackoff time.Duration
 }
 
 func (tm *txManager) ReadCommitted(ctx context.Context, h Handler, opts ...TxOption) error {
@@ -122,11 +128,18 @@ func (tm *txManager) run(ctx context.Context, cfg TxConfig, h Handler) error {
 		}
 
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && (pgErr.Code == "40001" || pgErr.Code == "40P01") {
-			continue
+		if !(errors.As(err, &pgErr) && (pgErr.Code == "40001" || pgErr.Code == "40P01")) {
+			return slerr.WithSource(err)
 		}
 
-		return slerr.WithSource(err)
+		if attempt < cfg.Retry {
+			backoff := baseBackoff << attempt
+			if cfg.MaxBackoff > 0 && backoff > cfg.MaxBackoff {
+				backoff = cfg.MaxBackoff
+			}
+			sleep := backoff/2 + time.Duration(mrand.Int63n(int64(backoff/2)))
+			time.Sleep(sleep)
+		}
 	}
 
 	return fmt.Errorf("retries exceeded")
@@ -183,7 +196,7 @@ func chooseAccessMode(ro bool) pgx.TxAccessMode {
 
 func generateShortID() string {
 	var b [4]byte
-	if _, err := rand.Read(b[:]); err != nil {
+	if _, err := crand.Read(b[:]); err != nil {
 		return "errid"
 	}
 	return hex.EncodeToString(b[:])
