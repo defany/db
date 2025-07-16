@@ -218,3 +218,27 @@ func (r *Repository[T]) FetchJob(ctx context.Context, id int64) (*rivertype.JobR
 
 	return jobs[0], nil
 }
+
+func (r *Repository[T]) CancelJobs(ctx context.Context, ids ...int64) error {
+	if len(ids) == 0 {
+		return ErrJobIdsNotProvided
+	}
+
+	if tx, ok := txman.ExtractTX(ctx); ok {
+		for _, id := range ids {
+			if _, err := r.river.JobCancelTx(ctx, tx, id); err != nil {
+				return slerr.WithSource(err)
+			}
+		}
+
+		return nil
+	}
+
+	for _, id := range ids {
+		if _, err := r.river.JobCancel(ctx, id); err != nil {
+			return slerr.WithSource(err)
+		}
+	}
+
+	return nil
+}
