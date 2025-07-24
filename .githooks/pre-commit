@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ -n "${CI:-}" ]]; then
+  exit 0
+fi
+
+echo "[pre-commit] Generating mocks..."
+
+mockery
+
+if ! git diff --quiet; then
+  echo "[pre-commit] Mocks updated, adding to commit..."
+  git add -A
+fi
+
+echo "[pre-commit] Done."
+exit 0

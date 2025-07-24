@@ -1,0 +1,18 @@
+all: false
+dir: '{{.InterfaceDir}}/mocks'
+filename: 'generated_test.mock.go'
+force-file-write: true
+formatter: goimports
+include-auto-generated: false
+log-level: info
+structname: '{{.Mock}}{{.InterfaceName}}'
+pkgname: '{{.SrcPackageName}}'
+recursive: true
+require-template-schema-exists: true
+template: testify
+template-schema: '{{.Template}}.schema.json'
+
+packages:
+  github.com/defany/db/v2:
+    config:
+      all: true
