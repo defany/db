@@ -36,6 +36,7 @@ type TxManager interface {
 	ReadCommitted(ctx context.Context, h Handler, opts ...TxOption) error
 	RepeatableRead(ctx context.Context, h Handler, opts ...TxOption) error
 	Serializable(ctx context.Context, h Handler, opts ...TxOption) error
+	runWithOpts(ctx context.Context, h Handler, opts []TxOption) error
 }
 
 type Postgres interface {
@@ -179,10 +180,10 @@ func execTx[T any](ctx context.Context, tm TxManager, handler GenericHandler[T],
 		opt(&cfg)
 	}
 
-	err = tm.Serializable(ctx, func(txCtx context.Context) error {
+	err = tm.runWithOpts(ctx, func(txCtx context.Context) error {
 		out, err = handler(txCtx)
 		return err
-	}, opts...)
+	}, opts)
 
 	return
 }
