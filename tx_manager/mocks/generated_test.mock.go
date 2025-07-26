@@ -914,6 +914,69 @@ func (_c *MockTxManager_RepeatableRead_Call) RunAndReturn(run func(ctx context.C
 	return _c
 }
 
+// RunWithOpts provides a mock function for the type MockTxManager
+func (_mock *MockTxManager) RunWithOpts(ctx context.Context, h txman.Handler, opts []txman.TxOption) error {
+	ret := _mock.Called(ctx, h, opts)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RunWithOpts")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, txman.Handler, []txman.TxOption) error); ok {
+		r0 = returnFunc(ctx, h, opts)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTxManager_RunWithOpts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RunWithOpts'
+type MockTxManager_RunWithOpts_Call struct {
+	*mock.Call
+}
+
+// RunWithOpts is a helper method to define mock.On call
+//   - ctx context.Context
+//   - h txman.Handler
+//   - opts []txman.TxOption
+func (_e *MockTxManager_Expecter) RunWithOpts(ctx interface{}, h interface{}, opts interface{}) *MockTxManager_RunWithOpts_Call {
+	return &MockTxManager_RunWithOpts_Call{Call: _e.mock.On("RunWithOpts", ctx, h, opts)}
+}
+
+func (_c *MockTxManager_RunWithOpts_Call) Run(run func(ctx context.Context, h txman.Handler, opts []txman.TxOption)) *MockTxManager_RunWithOpts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 txman.Handler
+		if args[1] != nil {
+			arg1 = args[1].(txman.Handler)
+		}
+		var arg2 []txman.TxOption
+		if args[2] != nil {
+			arg2 = args[2].([]txman.TxOption)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTxManager_RunWithOpts_Call) Return(err error) *MockTxManager_RunWithOpts_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTxManager_RunWithOpts_Call) RunAndReturn(run func(ctx context.Context, h txman.Handler, opts []txman.TxOption) error) *MockTxManager_RunWithOpts_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Serializable provides a mock function for the type MockTxManager
 func (_mock *MockTxManager) Serializable(ctx context.Context, h txman.Handler, opts ...txman.TxOption) error {
 	var tmpRet mock.Arguments
@@ -982,69 +1045,6 @@ func (_c *MockTxManager_Serializable_Call) Return(err error) *MockTxManager_Seri
 }
 
 func (_c *MockTxManager_Serializable_Call) RunAndReturn(run func(ctx context.Context, h txman.Handler, opts ...txman.TxOption) error) *MockTxManager_Serializable_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// runWithOpts provides a mock function for the type MockTxManager
-func (_mock *MockTxManager) runWithOpts(ctx context.Context, h txman.Handler, opts []txman.TxOption) error {
-	ret := _mock.Called(ctx, h, opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for runWithOpts")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, txman.Handler, []txman.TxOption) error); ok {
-		r0 = returnFunc(ctx, h, opts)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockTxManager_runWithOpts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'runWithOpts'
-type MockTxManager_runWithOpts_Call struct {
-	*mock.Call
-}
-
-// runWithOpts is a helper method to define mock.On call
-//   - ctx context.Context
-//   - h txman.Handler
-//   - opts []txman.TxOption
-func (_e *MockTxManager_Expecter) runWithOpts(ctx interface{}, h interface{}, opts interface{}) *MockTxManager_runWithOpts_Call {
-	return &MockTxManager_runWithOpts_Call{Call: _e.mock.On("runWithOpts", ctx, h, opts)}
-}
-
-func (_c *MockTxManager_runWithOpts_Call) Run(run func(ctx context.Context, h txman.Handler, opts []txman.TxOption)) *MockTxManager_runWithOpts_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 txman.Handler
-		if args[1] != nil {
-			arg1 = args[1].(txman.Handler)
-		}
-		var arg2 []txman.TxOption
-		if args[2] != nil {
-			arg2 = args[2].([]txman.TxOption)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockTxManager_runWithOpts_Call) Return(err error) *MockTxManager_runWithOpts_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockTxManager_runWithOpts_Call) RunAndReturn(run func(ctx context.Context, h txman.Handler, opts []txman.TxOption) error) *MockTxManager_runWithOpts_Call {
 	_c.Call.Return(run)
 	return _c
 }

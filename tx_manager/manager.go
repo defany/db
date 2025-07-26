@@ -36,7 +36,7 @@ type TxManager interface {
 	ReadCommitted(ctx context.Context, h Handler, opts ...TxOption) error
 	RepeatableRead(ctx context.Context, h Handler, opts ...TxOption) error
 	Serializable(ctx context.Context, h Handler, opts ...TxOption) error
-	runWithOpts(ctx context.Context, h Handler, opts []TxOption) error
+	RunWithOpts(ctx context.Context, h Handler, opts []TxOption) error
 }
 
 type Postgres interface {
@@ -100,20 +100,20 @@ type TxConfig struct {
 
 func (tm *txManager) ReadCommitted(ctx context.Context, h Handler, opts ...TxOption) error {
 	opts = append(opts, WithIso(pgx.ReadCommitted))
-	return tm.runWithOpts(ctx, h, opts)
+	return tm.RunWithOpts(ctx, h, opts)
 }
 
 func (tm *txManager) RepeatableRead(ctx context.Context, h Handler, opts ...TxOption) error {
 	opts = append(opts, WithIso(pgx.RepeatableRead))
-	return tm.runWithOpts(ctx, h, opts)
+	return tm.RunWithOpts(ctx, h, opts)
 }
 
 func (tm *txManager) Serializable(ctx context.Context, h Handler, opts ...TxOption) error {
 	opts = append(opts, WithIso(pgx.Serializable))
-	return tm.runWithOpts(ctx, h, opts)
+	return tm.RunWithOpts(ctx, h, opts)
 }
 
-func (tm *txManager) runWithOpts(ctx context.Context, h Handler, opts []TxOption) error {
+func (tm *txManager) RunWithOpts(ctx context.Context, h Handler, opts []TxOption) error {
 	cfg := TxConfig{}
 	for _, o := range opts {
 		o(&cfg)
@@ -180,7 +180,7 @@ func execTx[T any](ctx context.Context, tm TxManager, handler GenericHandler[T],
 		opt(&cfg)
 	}
 
-	err = tm.runWithOpts(ctx, func(txCtx context.Context) error {
+	err = tm.RunWithOpts(ctx, func(txCtx context.Context) error {
 		out, err = handler(txCtx)
 		return err
 	}, opts)
