@@ -38,6 +38,7 @@ type Worker[T river.JobArgs] interface {
 	JobStatuses(ctx context.Context, ids ...int64) ([]JobStatus, error)
 	FetchJobs(ctx context.Context, ids ...int64) ([]*rivertype.JobRow, error)
 	FetchJob(ctx context.Context, id int64) (*rivertype.JobRow, error)
+	CancelJobs(ctx context.Context, ids ...int64) error
 }
 
 type Repository[T river.JobArgs] struct {
