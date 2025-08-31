@@ -554,6 +554,83 @@ func (_c *MockWorker_PutBatchWithOpts_Call[T]) RunAndReturn(run func(ctx context
 	return _c
 }
 
+// PutBatchWithResult provides a mock function for the type MockWorker
+func (_mock *MockWorker[T]) PutBatchWithResult(ctx context.Context, args ...T) ([]*rivertype.JobInsertResult, error) {
+	var tmpRet mock.Arguments
+	if len(args) > 0 {
+		tmpRet = _mock.Called(ctx, args)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for PutBatchWithResult")
+	}
+
+	var r0 []*rivertype.JobInsertResult
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...T) ([]*rivertype.JobInsertResult, error)); ok {
+		return returnFunc(ctx, args...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...T) []*rivertype.JobInsertResult); ok {
+		r0 = returnFunc(ctx, args...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*rivertype.JobInsertResult)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ...T) error); ok {
+		r1 = returnFunc(ctx, args...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockWorker_PutBatchWithResult_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PutBatchWithResult'
+type MockWorker_PutBatchWithResult_Call[T river0.JobArgs] struct {
+	*mock.Call
+}
+
+// PutBatchWithResult is a helper method to define mock.On call
+//   - ctx context.Context
+//   - args ...T
+func (_e *MockWorker_Expecter[T]) PutBatchWithResult(ctx interface{}, args ...interface{}) *MockWorker_PutBatchWithResult_Call[T] {
+	return &MockWorker_PutBatchWithResult_Call[T]{Call: _e.mock.On("PutBatchWithResult",
+		append([]interface{}{ctx}, args...)...)}
+}
+
+func (_c *MockWorker_PutBatchWithResult_Call[T]) Run(run func(ctx context.Context, args ...T)) *MockWorker_PutBatchWithResult_Call[T] {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []T
+		var variadicArgs []T
+		if len(args) > 1 {
+			variadicArgs = args[1].([]T)
+		}
+		arg1 = variadicArgs
+		run(
+			arg0,
+			arg1...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockWorker_PutBatchWithResult_Call[T]) Return(jobInsertResults []*rivertype.JobInsertResult, err error) *MockWorker_PutBatchWithResult_Call[T] {
+	_c.Call.Return(jobInsertResults, err)
+	return _c
+}
+
+func (_c *MockWorker_PutBatchWithResult_Call[T]) RunAndReturn(run func(ctx context.Context, args ...T) ([]*rivertype.JobInsertResult, error)) *MockWorker_PutBatchWithResult_Call[T] {
+	_c.Call.Return(run)
+	return _c
+}
+
 // PutWithOpts provides a mock function for the type MockWorker
 func (_mock *MockWorker[T]) PutWithOpts(ctx context.Context, options river.Options, args T) (int64, error) {
 	ret := _mock.Called(ctx, options, args)
@@ -622,6 +699,74 @@ func (_c *MockWorker_PutWithOpts_Call[T]) Return(n int64, err error) *MockWorker
 }
 
 func (_c *MockWorker_PutWithOpts_Call[T]) RunAndReturn(run func(ctx context.Context, options river.Options, args T) (int64, error)) *MockWorker_PutWithOpts_Call[T] {
+	_c.Call.Return(run)
+	return _c
+}
+
+// PutWithResult provides a mock function for the type MockWorker
+func (_mock *MockWorker[T]) PutWithResult(ctx context.Context, args T) (*rivertype.JobInsertResult, error) {
+	ret := _mock.Called(ctx, args)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PutWithResult")
+	}
+
+	var r0 *rivertype.JobInsertResult
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, T) (*rivertype.JobInsertResult, error)); ok {
+		return returnFunc(ctx, args)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, T) *rivertype.JobInsertResult); ok {
+		r0 = returnFunc(ctx, args)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*rivertype.JobInsertResult)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, T) error); ok {
+		r1 = returnFunc(ctx, args)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockWorker_PutWithResult_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PutWithResult'
+type MockWorker_PutWithResult_Call[T river0.JobArgs] struct {
+	*mock.Call
+}
+
+// PutWithResult is a helper method to define mock.On call
+//   - ctx context.Context
+//   - args T
+func (_e *MockWorker_Expecter[T]) PutWithResult(ctx interface{}, args interface{}) *MockWorker_PutWithResult_Call[T] {
+	return &MockWorker_PutWithResult_Call[T]{Call: _e.mock.On("PutWithResult", ctx, args)}
+}
+
+func (_c *MockWorker_PutWithResult_Call[T]) Run(run func(ctx context.Context, args T)) *MockWorker_PutWithResult_Call[T] {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 T
+		if args[1] != nil {
+			arg1 = args[1].(T)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockWorker_PutWithResult_Call[T]) Return(jobInsertResult *rivertype.JobInsertResult, err error) *MockWorker_PutWithResult_Call[T] {
+	_c.Call.Return(jobInsertResult, err)
+	return _c
+}
+
+func (_c *MockWorker_PutWithResult_Call[T]) RunAndReturn(run func(ctx context.Context, args T) (*rivertype.JobInsertResult, error)) *MockWorker_PutWithResult_Call[T] {
 	_c.Call.Return(run)
 	return _c
 }

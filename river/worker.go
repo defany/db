@@ -34,6 +34,8 @@ type Options struct {
 type Worker[T river.JobArgs] interface {
 	Put(ctx context.Context, args T) (int64, error)
 	PutBatch(ctx context.Context, args ...T) ([]int64, error)
+	PutBatchWithResult(ctx context.Context, args ...T) ([]*rivertype.JobInsertResult, error)
+	PutWithResult(ctx context.Context, args T) (*rivertype.JobInsertResult, error)
 	PutWithOpts(ctx context.Context, options Options, args T) (int64, error)
 	PutBatchWithOpts(ctx context.Context, options Options, args ...T) ([]int64, error)
 	JobStatuses(ctx context.Context, ids ...int64) ([]JobStatus, error)
