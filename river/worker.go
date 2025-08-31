@@ -10,6 +10,7 @@ import (
 	"github.com/defany/slogger/pkg/logger/sl"
 	"github.com/gookit/goutil/arrutil"
 	"github.com/jackc/pgx/v5"
+	"github.com/pkg/errors"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
 )
@@ -49,28 +50,7 @@ func New[T river.JobArgs](river *river.Client[pgx.Tx]) *Repository[T] {
 	return &Repository[T]{river: river}
 }
 
-func (r *Repository[T]) Put(ctx context.Context, args T) (int64, error) {
-	tx, ok := txman.ExtractTX(ctx)
-	if ok {
-		out, err := r.river.InsertTx(ctx, tx, args, nil)
-		if err != nil {
-			return 0, err
-		}
-
-		return out.Job.ID, nil
-	}
-
-	out, err := r.river.Insert(ctx, args, nil)
-	if err != nil {
-		return 0, err
-	}
-
-	return out.Job.ID, nil
-}
-
-func (r *Repository[T]) PutBatch(ctx context.Context, args ...T) ([]int64, error) {
-	op := sl.FnName()
-
+func (r *Repository[T]) PutBatchWithResult(ctx context.Context, args ...T) ([]*rivertype.JobInsertResult, error) {
 	insertParams := make([]river.InsertManyParams, 0, len(args))
 	for _, arg := range args {
 		insertParams = append(insertParams, river.InsertManyParams{
@@ -82,19 +62,46 @@ func (r *Repository[T]) PutBatch(ctx context.Context, args ...T) ([]int64, error
 	if ok {
 		out, err := r.river.InsertManyTx(ctx, tx, insertParams)
 		if err != nil {
-			return nil, sl.Err(op, err)
+			return nil, slerr.WithSource(err)
 		}
 
-		jobIds := arrutil.Map(out, func(input *rivertype.JobInsertResult) (target int64, find bool) {
-			return input.Job.ID, true
-		})
-
-		return jobIds, nil
+		return out, nil
 	}
 
 	out, err := r.river.InsertMany(ctx, insertParams)
 	if err != nil {
-		return nil, sl.Err(op, err)
+		return nil, slerr.WithSource(err)
+	}
+
+	return out, nil
+}
+
+func (r *Repository[T]) PutWithResult(ctx context.Context, args T) (*rivertype.JobInsertResult, error) {
+	res, err := r.PutBatchWithResult(ctx, args)
+	if err != nil {
+		return nil, slerr.WithSource(err)
+	}
+
+	if len(res) != 1 {
+		return nil, errors.New("zero job results without any error... some bug happened")
+	}
+
+	return res[0], nil
+}
+
+func (r *Repository[T]) Put(ctx context.Context, args T) (int64, error) {
+	out, err := r.PutBatch(ctx, args)
+	if err != nil {
+		return 0, slerr.WithSource(err)
+	}
+
+	return out[0], nil
+}
+
+func (r *Repository[T]) PutBatch(ctx context.Context, args ...T) ([]int64, error) {
+	out, err := r.PutBatchWithResult(ctx, args...)
+	if err != nil {
+		return nil, slerr.WithSource(err)
 	}
 
 	jobIds := arrutil.Map(out, func(input *rivertype.JobInsertResult) (target int64, find bool) {
