@@ -555,12 +555,12 @@ func (_c *MockWorker_PutBatchWithOpts_Call[T]) RunAndReturn(run func(ctx context
 }
 
 // PutBatchWithResult provides a mock function for the type MockWorker
-func (_mock *MockWorker[T]) PutBatchWithResult(ctx context.Context, args ...T) ([]*rivertype.JobInsertResult, error) {
+func (_mock *MockWorker[T]) PutBatchWithResult(ctx context.Context, args []T, options ...river.Options) ([]*rivertype.JobInsertResult, error) {
 	var tmpRet mock.Arguments
-	if len(args) > 0 {
-		tmpRet = _mock.Called(ctx, args)
+	if len(options) > 0 {
+		tmpRet = _mock.Called(ctx, args, options)
 	} else {
-		tmpRet = _mock.Called(ctx)
+		tmpRet = _mock.Called(ctx, args)
 	}
 	ret := tmpRet
 
@@ -570,18 +570,18 @@ func (_mock *MockWorker[T]) PutBatchWithResult(ctx context.Context, args ...T) (
 
 	var r0 []*rivertype.JobInsertResult
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...T) ([]*rivertype.JobInsertResult, error)); ok {
-		return returnFunc(ctx, args...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []T, ...river.Options) ([]*rivertype.JobInsertResult, error)); ok {
+		return returnFunc(ctx, args, options...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...T) []*rivertype.JobInsertResult); ok {
-		r0 = returnFunc(ctx, args...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []T, ...river.Options) []*rivertype.JobInsertResult); ok {
+		r0 = returnFunc(ctx, args, options...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*rivertype.JobInsertResult)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, ...T) error); ok {
-		r1 = returnFunc(ctx, args...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []T, ...river.Options) error); ok {
+		r1 = returnFunc(ctx, args, options...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -595,27 +595,33 @@ type MockWorker_PutBatchWithResult_Call[T river0.JobArgs] struct {
 
 // PutBatchWithResult is a helper method to define mock.On call
 //   - ctx context.Context
-//   - args ...T
-func (_e *MockWorker_Expecter[T]) PutBatchWithResult(ctx interface{}, args ...interface{}) *MockWorker_PutBatchWithResult_Call[T] {
+//   - args []T
+//   - options ...river.Options
+func (_e *MockWorker_Expecter[T]) PutBatchWithResult(ctx interface{}, args interface{}, options ...interface{}) *MockWorker_PutBatchWithResult_Call[T] {
 	return &MockWorker_PutBatchWithResult_Call[T]{Call: _e.mock.On("PutBatchWithResult",
-		append([]interface{}{ctx}, args...)...)}
+		append([]interface{}{ctx, args}, options...)...)}
 }
 
-func (_c *MockWorker_PutBatchWithResult_Call[T]) Run(run func(ctx context.Context, args ...T)) *MockWorker_PutBatchWithResult_Call[T] {
+func (_c *MockWorker_PutBatchWithResult_Call[T]) Run(run func(ctx context.Context, args []T, options ...river.Options)) *MockWorker_PutBatchWithResult_Call[T] {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
 		var arg1 []T
-		var variadicArgs []T
-		if len(args) > 1 {
-			variadicArgs = args[1].([]T)
+		if args[1] != nil {
+			arg1 = args[1].([]T)
 		}
-		arg1 = variadicArgs
+		var arg2 []river.Options
+		var variadicArgs []river.Options
+		if len(args) > 2 {
+			variadicArgs = args[2].([]river.Options)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
-			arg1...,
+			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -626,7 +632,7 @@ func (_c *MockWorker_PutBatchWithResult_Call[T]) Return(jobInsertResults []*rive
 	return _c
 }
 
-func (_c *MockWorker_PutBatchWithResult_Call[T]) RunAndReturn(run func(ctx context.Context, args ...T) ([]*rivertype.JobInsertResult, error)) *MockWorker_PutBatchWithResult_Call[T] {
+func (_c *MockWorker_PutBatchWithResult_Call[T]) RunAndReturn(run func(ctx context.Context, args []T, options ...river.Options) ([]*rivertype.JobInsertResult, error)) *MockWorker_PutBatchWithResult_Call[T] {
 	_c.Call.Return(run)
 	return _c
 }
@@ -704,8 +710,14 @@ func (_c *MockWorker_PutWithOpts_Call[T]) RunAndReturn(run func(ctx context.Cont
 }
 
 // PutWithResult provides a mock function for the type MockWorker
-func (_mock *MockWorker[T]) PutWithResult(ctx context.Context, args T) (*rivertype.JobInsertResult, error) {
-	ret := _mock.Called(ctx, args)
+func (_mock *MockWorker[T]) PutWithResult(ctx context.Context, args T, options ...river.Options) (*rivertype.JobInsertResult, error) {
+	var tmpRet mock.Arguments
+	if len(options) > 0 {
+		tmpRet = _mock.Called(ctx, args, options)
+	} else {
+		tmpRet = _mock.Called(ctx, args)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for PutWithResult")
@@ -713,18 +725,18 @@ func (_mock *MockWorker[T]) PutWithResult(ctx context.Context, args T) (*riverty
 
 	var r0 *rivertype.JobInsertResult
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, T) (*rivertype.JobInsertResult, error)); ok {
-		return returnFunc(ctx, args)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, T, ...river.Options) (*rivertype.JobInsertResult, error)); ok {
+		return returnFunc(ctx, args, options...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, T) *rivertype.JobInsertResult); ok {
-		r0 = returnFunc(ctx, args)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, T, ...river.Options) *rivertype.JobInsertResult); ok {
+		r0 = returnFunc(ctx, args, options...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*rivertype.JobInsertResult)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, T) error); ok {
-		r1 = returnFunc(ctx, args)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, T, ...river.Options) error); ok {
+		r1 = returnFunc(ctx, args, options...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -739,11 +751,13 @@ type MockWorker_PutWithResult_Call[T river0.JobArgs] struct {
 // PutWithResult is a helper method to define mock.On call
 //   - ctx context.Context
 //   - args T
-func (_e *MockWorker_Expecter[T]) PutWithResult(ctx interface{}, args interface{}) *MockWorker_PutWithResult_Call[T] {
-	return &MockWorker_PutWithResult_Call[T]{Call: _e.mock.On("PutWithResult", ctx, args)}
+//   - options ...river.Options
+func (_e *MockWorker_Expecter[T]) PutWithResult(ctx interface{}, args interface{}, options ...interface{}) *MockWorker_PutWithResult_Call[T] {
+	return &MockWorker_PutWithResult_Call[T]{Call: _e.mock.On("PutWithResult",
+		append([]interface{}{ctx, args}, options...)...)}
 }
 
-func (_c *MockWorker_PutWithResult_Call[T]) Run(run func(ctx context.Context, args T)) *MockWorker_PutWithResult_Call[T] {
+func (_c *MockWorker_PutWithResult_Call[T]) Run(run func(ctx context.Context, args T, options ...river.Options)) *MockWorker_PutWithResult_Call[T] {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -753,9 +767,16 @@ func (_c *MockWorker_PutWithResult_Call[T]) Run(run func(ctx context.Context, ar
 		if args[1] != nil {
 			arg1 = args[1].(T)
 		}
+		var arg2 []river.Options
+		var variadicArgs []river.Options
+		if len(args) > 2 {
+			variadicArgs = args[2].([]river.Options)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -766,7 +787,7 @@ func (_c *MockWorker_PutWithResult_Call[T]) Return(jobInsertResult *rivertype.Jo
 	return _c
 }
 
-func (_c *MockWorker_PutWithResult_Call[T]) RunAndReturn(run func(ctx context.Context, args T) (*rivertype.JobInsertResult, error)) *MockWorker_PutWithResult_Call[T] {
+func (_c *MockWorker_PutWithResult_Call[T]) RunAndReturn(run func(ctx context.Context, args T, options ...river.Options) (*rivertype.JobInsertResult, error)) *MockWorker_PutWithResult_Call[T] {
 	_c.Call.Return(run)
 	return _c
 }

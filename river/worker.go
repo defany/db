@@ -34,8 +34,8 @@ type Options struct {
 type Worker[T river.JobArgs] interface {
 	Put(ctx context.Context, args T) (int64, error)
 	PutBatch(ctx context.Context, args ...T) ([]int64, error)
-	PutBatchWithResult(ctx context.Context, args ...T) ([]*rivertype.JobInsertResult, error)
-	PutWithResult(ctx context.Context, args T) (*rivertype.JobInsertResult, error)
+	PutBatchWithResult(ctx context.Context, args []T, options ...Options) ([]*rivertype.JobInsertResult, error)
+	PutWithResult(ctx context.Context, args T, options ...Options) (*rivertype.JobInsertResult, error)
 	PutWithOpts(ctx context.Context, options Options, args T) (int64, error)
 	PutBatchWithOpts(ctx context.Context, options Options, args ...T) ([]int64, error)
 	JobStatuses(ctx context.Context, ids ...int64) ([]JobStatus, error)
@@ -52,12 +52,21 @@ func New[T river.JobArgs](river *river.Client[pgx.Tx]) *Repository[T] {
 	return &Repository[T]{river: river}
 }
 
-func (r *Repository[T]) PutBatchWithResult(ctx context.Context, args ...T) ([]*rivertype.JobInsertResult, error) {
+func (r *Repository[T]) PutBatchWithResult(ctx context.Context, args []T, options ...Options) ([]*rivertype.JobInsertResult, error) {
 	insertParams := make([]river.InsertManyParams, 0, len(args))
 	for _, arg := range args {
-		insertParams = append(insertParams, river.InsertManyParams{
+		params := river.InsertManyParams{
 			Args: arg,
-		})
+		}
+
+		if len(options) > 0 {
+			opts := options[0]
+			params.InsertOpts = &river.InsertOpts{
+				ScheduledAt: opts.ScheduledAt,
+			}
+		}
+
+		insertParams = append(insertParams, params)
 	}
 
 	tx, ok := txman.ExtractTX(ctx)
@@ -78,8 +87,8 @@ func (r *Repository[T]) PutBatchWithResult(ctx context.Context, args ...T) ([]*r
 	return out, nil
 }
 
-func (r *Repository[T]) PutWithResult(ctx context.Context, args T) (*rivertype.JobInsertResult, error) {
-	res, err := r.PutBatchWithResult(ctx, args)
+func (r *Repository[T]) PutWithResult(ctx context.Context, args T, options ...Options) (*rivertype.JobInsertResult, error) {
+	res, err := r.PutBatchWithResult(ctx, []T{args}, options...)
 	if err != nil {
 		return nil, slerr.WithSource(err)
 	}
@@ -101,7 +110,7 @@ func (r *Repository[T]) Put(ctx context.Context, args T) (int64, error) {
 }
 
 func (r *Repository[T]) PutBatch(ctx context.Context, args ...T) ([]int64, error) {
-	out, err := r.PutBatchWithResult(ctx, args...)
+	out, err := r.PutBatchWithResult(ctx, args)
 	if err != nil {
 		return nil, slerr.WithSource(err)
 	}
