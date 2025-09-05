@@ -106,6 +106,72 @@ func (_c *MockWorker_CancelJobs_Call[T]) RunAndReturn(run func(ctx context.Conte
 	return _c
 }
 
+// DeleteJobs provides a mock function for the type MockWorker
+func (_mock *MockWorker[T]) DeleteJobs(ctx context.Context, ids ...int64) error {
+	var tmpRet mock.Arguments
+	if len(ids) > 0 {
+		tmpRet = _mock.Called(ctx, ids)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteJobs")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...int64) error); ok {
+		r0 = returnFunc(ctx, ids...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockWorker_DeleteJobs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteJobs'
+type MockWorker_DeleteJobs_Call[T river0.JobArgs] struct {
+	*mock.Call
+}
+
+// DeleteJobs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ids ...int64
+func (_e *MockWorker_Expecter[T]) DeleteJobs(ctx interface{}, ids ...interface{}) *MockWorker_DeleteJobs_Call[T] {
+	return &MockWorker_DeleteJobs_Call[T]{Call: _e.mock.On("DeleteJobs",
+		append([]interface{}{ctx}, ids...)...)}
+}
+
+func (_c *MockWorker_DeleteJobs_Call[T]) Run(run func(ctx context.Context, ids ...int64)) *MockWorker_DeleteJobs_Call[T] {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []int64
+		var variadicArgs []int64
+		if len(args) > 1 {
+			variadicArgs = args[1].([]int64)
+		}
+		arg1 = variadicArgs
+		run(
+			arg0,
+			arg1...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockWorker_DeleteJobs_Call[T]) Return(err error) *MockWorker_DeleteJobs_Call[T] {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockWorker_DeleteJobs_Call[T]) RunAndReturn(run func(ctx context.Context, ids ...int64) error) *MockWorker_DeleteJobs_Call[T] {
+	_c.Call.Return(run)
+	return _c
+}
+
 // FetchJob provides a mock function for the type MockWorker
 func (_mock *MockWorker[T]) FetchJob(ctx context.Context, id int64) (*rivertype.JobRow, error) {
 	ret := _mock.Called(ctx, id)

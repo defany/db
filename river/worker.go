@@ -42,6 +42,7 @@ type Worker[T river.JobArgs] interface {
 	FetchJobs(ctx context.Context, ids ...int64) ([]*rivertype.JobRow, error)
 	FetchJob(ctx context.Context, id int64) (*rivertype.JobRow, error)
 	CancelJobs(ctx context.Context, ids ...int64) error
+	DeleteJobs(ctx context.Context, ids ...int64) error
 }
 
 type Repository[T river.JobArgs] struct {
@@ -236,6 +237,30 @@ func (r *Repository[T]) FetchJob(ctx context.Context, id int64) (*rivertype.JobR
 	}
 
 	return jobs[0], nil
+}
+
+func (r *Repository[T]) DeleteJobs(ctx context.Context, ids ...int64) error {
+	if len(ids) == 0 {
+		return ErrJobIdsNotProvided
+	}
+
+	deleteParams := river.NewJobDeleteManyParams()
+	deleteParams.IDs(ids...)
+
+	if tx, ok := txman.ExtractTX(ctx); ok {
+		if _, err := r.river.JobDeleteManyTx(ctx, tx, deleteParams); err != nil {
+			return slerr.WithSource(err)
+		}
+
+		return nil
+	}
+
+	_, err := r.river.JobDeleteMany(ctx, deleteParams)
+	if err != nil {
+		return slerr.WithSource(err)
+	}
+
+	return nil
 }
 
 func (r *Repository[T]) CancelJobs(ctx context.Context, ids ...int64) error {
