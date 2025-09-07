@@ -3,6 +3,7 @@ package river
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	txman "github.com/defany/db/v2/tx_manager"
@@ -244,18 +245,23 @@ func (r *Repository[T]) DeleteJobs(ctx context.Context, ids ...int64) error {
 		return ErrJobIdsNotProvided
 	}
 
-	deleteParams := river.NewJobDeleteManyParams()
-	deleteParams.IDs(ids...)
+	sql := "delete from river_job where id in ($1)"
+
+	rawIds := make([]string, 0, len(ids))
+	for _, id := range ids {
+		rawIds = append(rawIds, fmt.Sprintf("%d", id))
+	}
 
 	if tx, ok := txman.ExtractTX(ctx); ok {
-		if _, err := r.river.JobDeleteManyTx(ctx, tx, deleteParams); err != nil {
+		_, err := tx.Exec(ctx, sql, strings.Join(rawIds, ","))
+		if err != nil {
 			return slerr.WithSource(err)
 		}
 
 		return nil
 	}
 
-	_, err := r.river.JobDeleteMany(ctx, deleteParams)
+	err := r.river.Driver().GetExecutor().Exec(ctx, sql, strings.Join(rawIds, ","))
 	if err != nil {
 		return slerr.WithSource(err)
 	}
