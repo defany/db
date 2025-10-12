@@ -13,8 +13,8 @@ type Migrator struct {
 	provider *goose.Provider
 }
 
-func NewMigrator(db *pgxpool.Pool, migrationsDir string) (*Migrator, error) {
-	provider, err := goose.NewProvider(goose.DialectPostgres, stdlib.OpenDBFromPool(db), os.DirFS(migrationsDir))
+func NewMigrator(db *pgxpool.Pool, migrationsDir string, opts ...goose.ProviderOption) (*Migrator, error) {
+	provider, err := goose.NewProvider(goose.DialectPostgres, stdlib.OpenDBFromPool(db), os.DirFS(migrationsDir), opts...)
 	if err != nil {
 		return nil, err
 	}
