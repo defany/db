@@ -2,18 +2,19 @@ package postgres
 
 import (
 	"context"
+	"os"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
-	"os"
 )
 
 type Migrator struct {
 	provider *goose.Provider
 }
 
-func NewMigrator(db *pgxpool.Pool, migrationsDir string) (*Migrator, error) {
-	provider, err := goose.NewProvider(goose.DialectPostgres, stdlib.OpenDBFromPool(db), os.DirFS(migrationsDir))
+func NewMigrator(db *pgxpool.Pool, migrationsDir string, options ...goose.ProviderOption) (*Migrator, error) {
+	provider, err := goose.NewProvider(goose.DialectPostgres, stdlib.OpenDBFromPool(db), os.DirFS(migrationsDir), options...)
 	if err != nil {
 		return nil, err
 	}
