@@ -14,7 +14,13 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	pkgerrors "github.com/pkg/errors"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
+
+var tracer = otel.Tracer("tx")
 
 const baseBackoff = 10 * time.Millisecond
 
@@ -122,16 +128,34 @@ func (tm *txManager) RunWithOpts(ctx context.Context, h Handler, opts []TxOption
 }
 
 func (tm *txManager) run(ctx context.Context, cfg TxConfig, h Handler) error {
+	ctx, runSpan := tracer.Start(ctx, "tx.run", trace.WithSpanKind(trace.SpanKindInternal))
+	defer runSpan.End()
+
 	for attempt := uint(0); attempt <= cfg.Retry; attempt++ {
-		err := tm.execTx(ctx, cfg, h)
+		attCtx, attSpan := tracer.Start(ctx, "tx.attempt",
+			trace.WithSpanKind(trace.SpanKindInternal),
+			trace.WithAttributes(
+				attribute.Int("attempt", int(attempt)),
+				attribute.String("iso_level", string(cfg.IsoLevel)),
+				attribute.Bool("read_only", cfg.ReadOnly),
+			),
+		)
+
+		err := tm.execTx(attCtx, cfg, h)
 		if err == nil {
+			attSpan.End()
 			return nil
 		}
 
 		var pgErr *pgconn.PgError
 		if !(errors.As(err, &pgErr) && (pgErr.Code == "40001" || pgErr.Code == "40P01")) {
+			attSpan.RecordError(err)
+			attSpan.End()
 			return slerr.WithSource(err)
 		}
+
+		attSpan.SetAttributes(attribute.String("pg.code", pgErr.Code))
+		attSpan.End()
 
 		if attempt < cfg.Retry {
 			backoff := baseBackoff << attempt
