@@ -26,8 +26,9 @@ type Postgres interface {
 type postgres struct {
 	log *slog.Logger
 
-	primary  *pgxpool.Pool
-	selector replicaSelector
+	primary         *pgxpool.Pool
+	selector        replicaSelector
+	fallbackEnabled bool
 }
 
 func NewPostgres(ctx context.Context, log *slog.Logger, cfg *Config) (Postgres, error) {
@@ -37,8 +38,9 @@ func NewPostgres(ctx context.Context, log *slog.Logger, cfg *Config) (Postgres, 
 	}
 
 	p := &postgres{
-		log:     log,
-		primary: primary,
+		log:             log,
+		primary:         primary,
+		fallbackEnabled: cfg.ReplicaFallbackEnabled,
 	}
 
 	if len(cfg.ReplicaConfigs) > 0 {
@@ -48,6 +50,7 @@ func NewPostgres(ctx context.Context, log *slog.Logger, cfg *Config) (Postgres, 
 			log.Info("replica routing enabled",
 				slog.Int("replica_count", len(pools)),
 				slog.String("strategy", string(cfg.effectiveReplicaStrategy())),
+				slog.Bool("fallback_enabled", cfg.ReplicaFallbackEnabled),
 			)
 		}
 	}
@@ -91,7 +94,7 @@ func (p *postgres) Query(ctx context.Context, query string, args ...interface{})
 	pool := p.selectReadPool(ctx)
 	rows, err := pool.Query(ctx, query, args...)
 
-	if err != nil && pool != p.primary && p.primary != nil {
+	if err != nil && p.fallbackEnabled && pool != p.primary && p.primary != nil {
 		p.log.Warn("replica query failed, retrying on primary", slog.String("error", err.Error()))
 		return p.primary.Query(ctx, query, args...)
 	}

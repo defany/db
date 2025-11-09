@@ -138,3 +138,25 @@ func ExampleReplicaStrategy() {
 	dbRandom, _ := postgres.NewPostgres(ctx, log, cfgRandom)
 	defer dbRandom.Close()
 }
+
+// ExampleNewPostgres_withFallbackDisabled demonstrates disabling automatic fallback to primary.
+func ExampleNewPostgres_withFallbackDisabled() {
+	ctx := context.Background()
+	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+	// Disable automatic fallback - if replica fails, query will fail immediately.
+	cfg := postgres.NewConfig("user", "pass", "primary", "5432", "db").
+		WithReplicas(
+			postgres.NewReplicaConfig("postgresql://replica1:5432/db"),
+		).
+		WithReplicaFallback(false) // Disable fallback
+
+	db, _ := postgres.NewPostgres(ctx, log, cfg)
+	defer db.Close()
+
+	// If replica fails, this query will return error (no fallback to primary).
+	_, err := db.Query(ctx, "SELECT * FROM users")
+	if err != nil {
+		log.Error("query failed, no fallback", slog.Any("error", err))
+	}
+}

@@ -57,8 +57,9 @@ type Config struct {
 
 	tracer pgx.QueryTracer
 
-	ReplicaConfigs  []*ReplicaConfig
-	ReplicaStrategy ReplicaStrategy
+	ReplicaConfigs         []*ReplicaConfig
+	ReplicaStrategy        ReplicaStrategy
+	ReplicaFallbackEnabled bool
 }
 
 func NewConfig(username, password, host, port, database string) *Config {
@@ -72,7 +73,8 @@ func NewConfig(username, password, host, port, database string) *Config {
 		maxConnAttempts: defaultMaxConnAttempts,
 		retryConnDelay:  defaultRetryConnDelay,
 
-		AcquireTimeout: defaultAcquireTimeout,
+		AcquireTimeout:         defaultAcquireTimeout,
+		ReplicaFallbackEnabled: true,
 	}
 }
 
@@ -128,6 +130,11 @@ func (c *Config) WithReplicas(replicas ...*ReplicaConfig) *Config {
 
 func (c *Config) WithReplicaStrategy(strategy ReplicaStrategy) *Config {
 	c.ReplicaStrategy = strategy
+	return c
+}
+
+func (c *Config) WithReplicaFallback(enabled bool) *Config {
+	c.ReplicaFallbackEnabled = enabled
 	return c
 }
 
