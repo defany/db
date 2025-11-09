@@ -14,7 +14,6 @@ func ExampleNewPostgres_withReplicas() {
 	ctx := context.Background()
 	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	// Configure primary database with read replicas.
 	cfg := postgres.NewConfig("user", "password", "primary.db.example.com", "5432", "mydb").
 		WithConnAmount(20).
 		WithHealthCheckPeriod(30).
@@ -33,7 +32,6 @@ func ExampleNewPostgres_withReplicas() {
 	}
 	defer db.Close()
 
-	// Read queries go to replicas (outside transactions).
 	rows, err := db.Query(ctx, "SELECT id, name FROM users WHERE active = $1", true)
 	if err != nil {
 		log.Error("query failed", slog.Any("error", err))
@@ -41,12 +39,40 @@ func ExampleNewPostgres_withReplicas() {
 	}
 	defer rows.Close()
 
-	// Write operations always go to primary.
 	_, err = db.Exec(ctx, "INSERT INTO users (name, email) VALUES ($1, $2)", "Alice", "alice@example.com")
 	if err != nil {
 		log.Error("exec failed", slog.Any("error", err))
 		return
 	}
+}
+
+// ExampleNewPostgres_withReplicaPool demonstrates manual ReplicaPool creation.
+func ExampleNewPostgres_withReplicaPool() {
+	ctx := context.Background()
+	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+	primaryCfg := postgres.NewConfig("user", "pass", "primary.db", "5432", "mydb")
+	db, _ := postgres.NewPostgres(ctx, log, primaryCfg)
+	defer db.Close()
+
+	replicaPool, err := postgres.NewReplicaPool(ctx, log, []*postgres.ReplicaConfig{
+		postgres.NewReplicaConfig("postgresql://user:pass@replica1:5432/mydb").
+			WithName("replica-1").
+			WithConnAmount(50),
+		postgres.NewReplicaConfig("postgresql://user:pass@replica2:5432/mydb").
+			WithName("replica-2").
+			WithConnAmount(30),
+	}, postgres.ReplicaStrategyRoundRobin)
+
+	if err != nil {
+		log.Error("failed to create replica pool", slog.Any("error", err))
+		return
+	}
+
+	db.WithReplicaPool(replicaPool)
+
+	rows, _ := db.Query(ctx, "SELECT * FROM users")
+	defer rows.Close()
 }
 
 // ExampleNewPostgres_transactions demonstrates transaction behavior with replicas.

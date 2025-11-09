@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	txman "github.com/defany/db/v2/tx_manager"
@@ -20,6 +19,8 @@ type Postgres interface {
 
 	Pool() *pgxpool.Pool
 
+	WithReplicaPool(replicaPool *ReplicaPool) Postgres
+
 	Close()
 }
 
@@ -27,7 +28,7 @@ type postgres struct {
 	log *slog.Logger
 
 	primary         *pgxpool.Pool
-	selector        replicaSelector
+	replicaPool     *ReplicaPool
 	fallbackEnabled bool
 }
 
@@ -44,11 +45,13 @@ func NewPostgres(ctx context.Context, log *slog.Logger, cfg *Config) (Postgres, 
 	}
 
 	if len(cfg.ReplicaConfigs) > 0 {
-		pools, names := p.connectReplicas(ctx, log, cfg)
-		if len(pools) > 0 {
-			p.selector = newReplicaSelector(cfg.effectiveReplicaStrategy(), pools, names, log)
-			log.Info("replica routing enabled",
-				slog.Int("replica_count", len(pools)),
+		replicaPool, err := NewReplicaPool(ctx, log, cfg.ReplicaConfigs, cfg.effectiveReplicaStrategy())
+		if err != nil {
+			log.Warn("failed to initialize replica pool, using primary only", slog.Any("error", err))
+		} else {
+			p.replicaPool = replicaPool
+			log.Info("replica pool initialized",
+				slog.Int("replica_count", len(replicaPool.pools)),
 				slog.String("strategy", string(cfg.effectiveReplicaStrategy())),
 				slog.Bool("fallback_enabled", cfg.ReplicaFallbackEnabled),
 			)
@@ -58,31 +61,9 @@ func NewPostgres(ctx context.Context, log *slog.Logger, cfg *Config) (Postgres, 
 	return p, nil
 }
 
-func (p *postgres) connectReplicas(ctx context.Context, log *slog.Logger, cfg *Config) ([]*pgxpool.Pool, []string) {
-	pools := make([]*pgxpool.Pool, 0, len(cfg.ReplicaConfigs))
-	names := make([]string, 0, len(cfg.ReplicaConfigs))
-
-	for i, replicaCfg := range cfg.ReplicaConfigs {
-		pool, err := connectReplica(ctx, log, cfg, replicaCfg)
-		if err != nil {
-			log.Warn("failed to connect replica, skipping",
-				slog.String("name", replicaCfg.Name),
-				slog.Int("index", i),
-				slog.Any("error", err),
-			)
-			continue
-		}
-
-		name := replicaCfg.Name
-		if name == "" {
-			name = fmt.Sprintf("replica-%d", i)
-		}
-
-		pools = append(pools, pool)
-		names = append(names, name)
-	}
-
-	return pools, names
+func (p *postgres) WithReplicaPool(replicaPool *ReplicaPool) Postgres {
+	p.replicaPool = replicaPool
+	return p
 }
 
 func (p *postgres) Query(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error) {
@@ -91,15 +72,21 @@ func (p *postgres) Query(ctx context.Context, query string, args ...interface{})
 		return tx.Query(ctx, query, args...)
 	}
 
-	pool := p.selectReadPool(ctx)
-	rows, err := pool.Query(ctx, query, args...)
-
-	if err != nil && p.fallbackEnabled && pool != p.primary && p.primary != nil {
-		p.log.Warn("replica query failed, retrying on primary", slog.String("error", err.Error()))
+	if p.replicaPool == nil {
 		return p.primary.Query(ctx, query, args...)
 	}
 
-	return rows, err
+	rows, err := p.replicaPool.Query(ctx, query, args...)
+	if err == nil {
+		return rows, nil
+	}
+
+	if !p.fallbackEnabled {
+		return nil, err
+	}
+
+	p.log.Warn("replica query failed, retrying on primary", slog.String("error", err.Error()))
+	return p.primary.Query(ctx, query, args...)
 }
 
 func (p *postgres) QueryRow(ctx context.Context, query string, args ...interface{}) pgx.Row {
@@ -108,8 +95,11 @@ func (p *postgres) QueryRow(ctx context.Context, query string, args ...interface
 		return tx.QueryRow(ctx, query, args...)
 	}
 
-	pool := p.selectReadPool(ctx)
-	return pool.QueryRow(ctx, query, args...)
+	if p.replicaPool == nil {
+		return p.primary.QueryRow(ctx, query, args...)
+	}
+
+	return p.replicaPool.QueryRow(ctx, query, args...)
 }
 
 func (p *postgres) Exec(ctx context.Context, query string, args ...interface{}) (commandTag pgconn.CommandTag, err error) {
@@ -132,20 +122,7 @@ func (p *postgres) Pool() *pgxpool.Pool {
 func (p *postgres) Close() {
 	p.primary.Close()
 
-	if p.selector != nil {
-		p.selector.Close()
+	if p.replicaPool != nil {
+		p.replicaPool.Close()
 	}
-}
-
-func (p *postgres) selectReadPool(ctx context.Context) *pgxpool.Pool {
-	if p.selector == nil {
-		return p.primary
-	}
-
-	replica := p.selector.Next(ctx)
-	if replica == nil {
-		return p.primary
-	}
-
-	return replica
 }
