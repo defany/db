@@ -19,6 +19,25 @@ const (
 	defaultAcquireTimeout  = 5 * time.Second
 )
 
+type ReplicaStrategy string
+
+const (
+	ReplicaStrategyRoundRobin ReplicaStrategy = "round_robin"
+	ReplicaStrategyRandom     ReplicaStrategy = "random"
+)
+
+type ReplicaConfig struct {
+	DSN  string
+	Name string
+
+	ConnAmount        *int32
+	MinConnAmount     *int32
+	MaxConnIdleTime   *time.Duration
+	MaxConnLifetime   *time.Duration
+	HealthCheckPeriod *time.Duration
+	AcquireTimeout    *time.Duration
+}
+
 type Config struct {
 	Username string
 	Password string
@@ -37,6 +56,9 @@ type Config struct {
 	retryConnDelay  time.Duration
 
 	tracer pgx.QueryTracer
+
+	ReplicaConfigs  []*ReplicaConfig
+	ReplicaStrategy ReplicaStrategy
 }
 
 func NewConfig(username, password, host, port, database string) *Config {
@@ -99,6 +121,16 @@ func (c *Config) WithTracer(tracer pgx.QueryTracer) *Config {
 	return c
 }
 
+func (c *Config) WithReplicas(replicas ...*ReplicaConfig) *Config {
+	c.ReplicaConfigs = append(c.ReplicaConfigs, replicas...)
+	return c
+}
+
+func (c *Config) WithReplicaStrategy(strategy ReplicaStrategy) *Config {
+	c.ReplicaStrategy = strategy
+	return c
+}
+
 func (c *Config) dsn() string {
 	return fmt.Sprintf(
 		"postgresql://%s:%s@%s:%s/%s",
@@ -107,7 +139,13 @@ func (c *Config) dsn() string {
 	)
 }
 
-// NewClient создает и конфигурирует пул соединений.
+func (c *Config) effectiveReplicaStrategy() ReplicaStrategy {
+	if c.ReplicaStrategy == "" {
+		return ReplicaStrategyRoundRobin
+	}
+	return c.ReplicaStrategy
+}
+
 func NewClient(ctx context.Context, log *slog.Logger, cfg *Config) (pool *pgxpool.Pool, err error) {
 	dsn := cfg.dsn()
 
@@ -165,5 +203,129 @@ func NewClient(ctx context.Context, log *slog.Logger, cfg *Config) (pool *pgxpoo
 	}
 
 	log.Info("connected to postgresql")
+	return pool, nil
+}
+
+func NewReplicaConfig(dsn string) *ReplicaConfig {
+	return &ReplicaConfig{DSN: dsn}
+}
+
+func (r *ReplicaConfig) WithName(name string) *ReplicaConfig {
+	r.Name = name
+	return r
+}
+
+func (r *ReplicaConfig) WithConnAmount(amount int32) *ReplicaConfig {
+	r.ConnAmount = &amount
+	return r
+}
+
+func (r *ReplicaConfig) WithMinConnAmount(amount int32) *ReplicaConfig {
+	r.MinConnAmount = &amount
+	return r
+}
+
+func (r *ReplicaConfig) WithMaxConnIdleTime(d time.Duration) *ReplicaConfig {
+	r.MaxConnIdleTime = &d
+	return r
+}
+
+func (r *ReplicaConfig) WithMaxConnLifetime(d time.Duration) *ReplicaConfig {
+	r.MaxConnLifetime = &d
+	return r
+}
+
+func (r *ReplicaConfig) WithHealthCheckPeriod(d time.Duration) *ReplicaConfig {
+	r.HealthCheckPeriod = &d
+	return r
+}
+
+func (r *ReplicaConfig) WithAcquireTimeout(d time.Duration) *ReplicaConfig {
+	r.AcquireTimeout = &d
+	return r
+}
+
+func selectInt32(primary, override *int32) *int32 {
+	if override != nil {
+		return override
+	}
+	return primary
+}
+
+func selectDuration(primary, override *time.Duration) *time.Duration {
+	if override != nil {
+		return override
+	}
+	return primary
+}
+
+func connectReplica(ctx context.Context, log *slog.Logger, primaryCfg *Config, replicaCfg *ReplicaConfig) (*pgxpool.Pool, error) {
+	if replicaCfg == nil || replicaCfg.DSN == "" {
+		return nil, fmt.Errorf("replica config or DSN is empty")
+	}
+
+	pgxCfg, err := pgxpool.ParseConfig(replicaCfg.DSN)
+	if err != nil {
+		return nil, fmt.Errorf("parse replica DSN: %w", err)
+	}
+
+	connAmount := selectInt32(primaryCfg.ConnAmount, replicaCfg.ConnAmount)
+	if connAmount != nil {
+		pgxCfg.MaxConns = *connAmount
+	}
+
+	minConnAmount := selectInt32(primaryCfg.MinConnAmount, replicaCfg.MinConnAmount)
+	if minConnAmount != nil {
+		pgxCfg.MinConns = *minConnAmount
+	}
+
+	maxIdleTime := selectDuration(primaryCfg.MaxConnIdleTime, replicaCfg.MaxConnIdleTime)
+	if maxIdleTime != nil {
+		pgxCfg.MaxConnIdleTime = *maxIdleTime
+	}
+
+	maxLifetime := selectDuration(primaryCfg.MaxConnLifetime, replicaCfg.MaxConnLifetime)
+	if maxLifetime != nil {
+		pgxCfg.MaxConnLifetime = *maxLifetime
+	}
+
+	healthCheckPeriod := selectDuration(primaryCfg.HealthCheckPeriod, replicaCfg.HealthCheckPeriod)
+	if healthCheckPeriod != nil {
+		pgxCfg.HealthCheckPeriod = *healthCheckPeriod
+	}
+
+	pgxCfg.ConnConfig.Tracer = primaryCfg.tracer
+
+	acquireTimeout := primaryCfg.AcquireTimeout
+	if replicaCfg.AcquireTimeout != nil {
+		acquireTimeout = *replicaCfg.AcquireTimeout
+	}
+
+	var pool *pgxpool.Pool
+	err = retry.WithAttempts(primaryCfg.maxConnAttempts, primaryCfg.retryConnDelay, func() error {
+		log.Info("connecting to replica...", slog.String("name", replicaCfg.Name))
+
+		connectCtx, cancel := context.WithTimeout(ctx, acquireTimeout)
+		defer cancel()
+
+		pool, err = pgxpool.NewWithConfig(connectCtx, pgxCfg)
+		if err != nil {
+			log.Error("failed to connect to replica", sl.ErrAttr(err), slog.String("name", replicaCfg.Name))
+			return err
+		}
+
+		if err = pool.Ping(ctx); err != nil {
+			log.Error("ping to replica failed", sl.ErrAttr(err), slog.String("name", replicaCfg.Name))
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("connect replica %q: %w", replicaCfg.Name, err)
+	}
+
+	log.Info("replica connected", slog.String("name", replicaCfg.Name))
 	return pool, nil
 }
