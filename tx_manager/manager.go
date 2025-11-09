@@ -199,7 +199,7 @@ func (tm *txManager) execTx(ctx context.Context, cfg TxConfig, h Handler) (err e
 }
 
 func execTx[T any](ctx context.Context, tm TxManager, handler GenericHandler[T], opts ...TxOption) (out T, err error) {
-	cfg := TxConfig{IsoLevel: pgx.ReadCommitted}
+	cfg := TxConfig{IsoLevel: pgx.ReadCommitted, Retry: 5}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
