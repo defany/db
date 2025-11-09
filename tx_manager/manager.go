@@ -120,7 +120,9 @@ func (tm *txManager) Serializable(ctx context.Context, h Handler, opts ...TxOpti
 }
 
 func (tm *txManager) RunWithOpts(ctx context.Context, h Handler, opts []TxOption) error {
-	cfg := TxConfig{}
+	cfg := TxConfig{
+		Retry: 5,
+	}
 	for _, o := range opts {
 		o(&cfg)
 	}
@@ -199,7 +201,7 @@ func (tm *txManager) execTx(ctx context.Context, cfg TxConfig, h Handler) (err e
 }
 
 func execTx[T any](ctx context.Context, tm TxManager, handler GenericHandler[T], opts ...TxOption) (out T, err error) {
-	cfg := TxConfig{IsoLevel: pgx.ReadCommitted, Retry: 5}
+	cfg := TxConfig{IsoLevel: pgx.ReadCommitted}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
