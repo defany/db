@@ -110,10 +110,6 @@ func (r *ReplicaPool) Exec(ctx context.Context, query string, args ...interface{
 }
 
 func (r *ReplicaPool) pickPool(_ context.Context) *pgxpool.Pool {
-	if len(r.pools) == 0 {
-		return nil
-	}
-
 	switch r.strategy {
 	case ReplicaStrategyRandom:
 		idx := rand.IntN(len(r.pools))

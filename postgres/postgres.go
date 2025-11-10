@@ -85,7 +85,7 @@ func (p *postgres) Query(ctx context.Context, query string, args ...interface{})
 		return nil, err
 	}
 
-	p.log.Warn("replica query failed, retrying on primary", slog.String("error", err.Error()))
+	p.log.Warn("replica query failed, falling back to primary", slog.String("error", err.Error()))
 	return p.primary.Query(ctx, query, args...)
 }
 
