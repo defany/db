@@ -19,6 +19,25 @@ const (
 	defaultAcquireTimeout  = 5 * time.Second
 )
 
+type ReplicaStrategy string
+
+const (
+	ReplicaStrategyRoundRobin ReplicaStrategy = "round_robin"
+	ReplicaStrategyRandom     ReplicaStrategy = "random"
+)
+
+type ReplicaConfig struct {
+	DSN  string
+	Name string
+
+	ConnAmount        *int32
+	MinConnAmount     *int32
+	MaxConnIdleTime   *time.Duration
+	MaxConnLifetime   *time.Duration
+	HealthCheckPeriod *time.Duration
+	AcquireTimeout    *time.Duration
+}
+
 type Config struct {
 	Username string
 	Password string
@@ -37,6 +56,10 @@ type Config struct {
 	retryConnDelay  time.Duration
 
 	tracer pgx.QueryTracer
+
+	ReplicaConfigs         []*ReplicaConfig
+	ReplicaStrategy        ReplicaStrategy
+	ReplicaFallbackEnabled bool
 }
 
 func NewConfig(username, password, host, port, database string) *Config {
@@ -50,7 +73,8 @@ func NewConfig(username, password, host, port, database string) *Config {
 		maxConnAttempts: defaultMaxConnAttempts,
 		retryConnDelay:  defaultRetryConnDelay,
 
-		AcquireTimeout: defaultAcquireTimeout,
+		AcquireTimeout:         defaultAcquireTimeout,
+		ReplicaFallbackEnabled: true,
 	}
 }
 
@@ -99,6 +123,21 @@ func (c *Config) WithTracer(tracer pgx.QueryTracer) *Config {
 	return c
 }
 
+func (c *Config) WithReplicas(replicas ...*ReplicaConfig) *Config {
+	c.ReplicaConfigs = append(c.ReplicaConfigs, replicas...)
+	return c
+}
+
+func (c *Config) WithReplicaStrategy(strategy ReplicaStrategy) *Config {
+	c.ReplicaStrategy = strategy
+	return c
+}
+
+func (c *Config) WithReplicaFallback(enabled bool) *Config {
+	c.ReplicaFallbackEnabled = enabled
+	return c
+}
+
 func (c *Config) dsn() string {
 	return fmt.Sprintf(
 		"postgresql://%s:%s@%s:%s/%s",
@@ -107,7 +146,13 @@ func (c *Config) dsn() string {
 	)
 }
 
-// NewClient создает и конфигурирует пул соединений.
+func (c *Config) effectiveReplicaStrategy() ReplicaStrategy {
+	if c.ReplicaStrategy == "" {
+		return ReplicaStrategyRoundRobin
+	}
+	return c.ReplicaStrategy
+}
+
 func NewClient(ctx context.Context, log *slog.Logger, cfg *Config) (pool *pgxpool.Pool, err error) {
 	dsn := cfg.dsn()
 
@@ -166,4 +211,43 @@ func NewClient(ctx context.Context, log *slog.Logger, cfg *Config) (pool *pgxpoo
 
 	log.Info("connected to postgresql")
 	return pool, nil
+}
+
+func NewReplicaConfig(dsn string) *ReplicaConfig {
+	return &ReplicaConfig{DSN: dsn}
+}
+
+func (r *ReplicaConfig) WithName(name string) *ReplicaConfig {
+	r.Name = name
+	return r
+}
+
+func (r *ReplicaConfig) WithConnAmount(amount int32) *ReplicaConfig {
+	r.ConnAmount = &amount
+	return r
+}
+
+func (r *ReplicaConfig) WithMinConnAmount(amount int32) *ReplicaConfig {
+	r.MinConnAmount = &amount
+	return r
+}
+
+func (r *ReplicaConfig) WithMaxConnIdleTime(d time.Duration) *ReplicaConfig {
+	r.MaxConnIdleTime = &d
+	return r
+}
+
+func (r *ReplicaConfig) WithMaxConnLifetime(d time.Duration) *ReplicaConfig {
+	r.MaxConnLifetime = &d
+	return r
+}
+
+func (r *ReplicaConfig) WithHealthCheckPeriod(d time.Duration) *ReplicaConfig {
+	r.HealthCheckPeriod = &d
+	return r
+}
+
+func (r *ReplicaConfig) WithAcquireTimeout(d time.Duration) *ReplicaConfig {
+	r.AcquireTimeout = &d
+	return r
 }
