@@ -60,6 +60,8 @@ type Config struct {
 	ReplicaConfigs         []*ReplicaConfig
 	ReplicaStrategy        ReplicaStrategy
 	ReplicaFallbackEnabled bool
+
+	Middlewares []Middleware
 }
 
 func NewConfig(username, password, host, port, database string) *Config {
@@ -135,6 +137,11 @@ func (c *Config) WithReplicaStrategy(strategy ReplicaStrategy) *Config {
 
 func (c *Config) WithReplicaFallback(enabled bool) *Config {
 	c.ReplicaFallbackEnabled = enabled
+	return c
+}
+
+func (c *Config) WithMiddlewares(middlewares ...Middleware) *Config {
+	c.Middlewares = append(c.Middlewares, middlewares...)
 	return c
 }
 

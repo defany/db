@@ -7,6 +7,7 @@ package mockpostgres
 import (
 	"context"
 
+	"github.com/defany/db/v2/postgres"
 	"github.com/defany/db/v2/tx_manager"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -422,6 +423,59 @@ func (_c *MockPostgres_QueryRow_Call) Return(row pgx.Row) *MockPostgres_QueryRow
 }
 
 func (_c *MockPostgres_QueryRow_Call) RunAndReturn(run func(ctx context.Context, query string, args ...interface{}) pgx.Row) *MockPostgres_QueryRow_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// WithReplicaPool provides a mock function for the type MockPostgres
+func (_mock *MockPostgres) WithReplicaPool(replicaPool *postgres.ReplicaPool) postgres.Postgres {
+	ret := _mock.Called(replicaPool)
+
+	if len(ret) == 0 {
+		panic("no return value specified for WithReplicaPool")
+	}
+
+	var r0 postgres.Postgres
+	if returnFunc, ok := ret.Get(0).(func(*postgres.ReplicaPool) postgres.Postgres); ok {
+		r0 = returnFunc(replicaPool)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(postgres.Postgres)
+		}
+	}
+	return r0
+}
+
+// MockPostgres_WithReplicaPool_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'WithReplicaPool'
+type MockPostgres_WithReplicaPool_Call struct {
+	*mock.Call
+}
+
+// WithReplicaPool is a helper method to define mock.On call
+//   - replicaPool *postgres.ReplicaPool
+func (_e *MockPostgres_Expecter) WithReplicaPool(replicaPool interface{}) *MockPostgres_WithReplicaPool_Call {
+	return &MockPostgres_WithReplicaPool_Call{Call: _e.mock.On("WithReplicaPool", replicaPool)}
+}
+
+func (_c *MockPostgres_WithReplicaPool_Call) Run(run func(replicaPool *postgres.ReplicaPool)) *MockPostgres_WithReplicaPool_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 *postgres.ReplicaPool
+		if args[0] != nil {
+			arg0 = args[0].(*postgres.ReplicaPool)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPostgres_WithReplicaPool_Call) Return(postgres1 postgres.Postgres) *MockPostgres_WithReplicaPool_Call {
+	_c.Call.Return(postgres1)
+	return _c
+}
+
+func (_c *MockPostgres_WithReplicaPool_Call) RunAndReturn(run func(replicaPool *postgres.ReplicaPool) postgres.Postgres) *MockPostgres_WithReplicaPool_Call {
 	_c.Call.Return(run)
 	return _c
 }

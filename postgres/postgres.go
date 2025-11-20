@@ -10,26 +10,30 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+type DBRequest struct {
+	Ctx   context.Context
+	Query string
+	Args  []interface{}
+}
+
+type Middleware func(ctx context.Context, req DBRequest) (context.Context, DBRequest, error)
+
 type Postgres interface {
 	Query(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error)
 	QueryRow(ctx context.Context, query string, args ...interface{}) pgx.Row
-	Exec(ctx context.Context, query string, args ...interface{}) (commandTag pgconn.CommandTag, err error)
-
+	Exec(ctx context.Context, query string, args ...interface{}) (pgconn.CommandTag, error)
 	BeginTx(ctx context.Context, txOptions pgx.TxOptions) (txman.Tx, error)
-
 	Pool() *pgxpool.Pool
-
 	WithReplicaPool(replicaPool *ReplicaPool) Postgres
-
 	Close()
 }
 
 type postgres struct {
-	log *slog.Logger
-
+	log             *slog.Logger
 	primary         *pgxpool.Pool
 	replicaPool     *ReplicaPool
 	fallbackEnabled bool
+	middlewares     []Middleware
 }
 
 func NewPostgres(ctx context.Context, log *slog.Logger, cfg *Config) (Postgres, error) {
@@ -42,19 +46,20 @@ func NewPostgres(ctx context.Context, log *slog.Logger, cfg *Config) (Postgres, 
 		log:             log,
 		primary:         primary,
 		fallbackEnabled: cfg.ReplicaFallbackEnabled,
+		middlewares:     cfg.Middlewares,
 	}
 
 	if len(cfg.ReplicaConfigs) > 0 {
 		replicaPool, err := NewReplicaPool(ctx, log, cfg.ReplicaConfigs, cfg.effectiveReplicaStrategy())
-		if err != nil {
-			log.Warn("failed to initialize replica pool, using primary only", slog.Any("error", err))
-		} else {
+		if err == nil {
 			p.replicaPool = replicaPool
 			log.Info("replica pool initialized",
 				slog.Int("replica_count", len(replicaPool.pools)),
 				slog.String("strategy", string(cfg.effectiveReplicaStrategy())),
 				slog.Bool("fallback_enabled", cfg.ReplicaFallbackEnabled),
 			)
+		} else {
+			log.Warn("failed to initialize replica pool, using primary only", slog.Any("error", err))
 		}
 	}
 
@@ -66,7 +71,37 @@ func (p *postgres) WithReplicaPool(replicaPool *ReplicaPool) Postgres {
 	return p
 }
 
+func (p *postgres) apply(ctx context.Context, query string, args []interface{}) (context.Context, string, []interface{}, error) {
+	if len(p.middlewares) == 0 {
+		return ctx, query, args, nil
+	}
+
+	req := DBRequest{
+		Ctx:   ctx,
+		Query: query,
+		Args:  args,
+	}
+
+	var err error
+	for _, mw := range p.middlewares {
+		ctx, req, err = mw(ctx, req)
+		if err != nil {
+			return ctx, "", nil, err
+		}
+	}
+
+	return ctx, req.Query, req.Args, nil
+}
+
 func (p *postgres) Query(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error) {
+	if len(p.middlewares) > 0 {
+		var err error
+		ctx, query, args, err = p.apply(ctx, query, args)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	tx, ok := txman.ExtractTX(ctx)
 	if ok {
 		return tx.Query(ctx, query, args...)
@@ -90,8 +125,15 @@ func (p *postgres) Query(ctx context.Context, query string, args ...interface{})
 }
 
 func (p *postgres) QueryRow(ctx context.Context, query string, args ...interface{}) pgx.Row {
-	tx, ok := txman.ExtractTX(ctx)
-	if ok {
+	if len(p.middlewares) > 0 {
+		var err error
+		ctx, query, args, err = p.apply(ctx, query, args)
+		if err != nil {
+			return errorRow{err: err}
+		}
+	}
+
+	if tx, ok := txman.ExtractTX(ctx); ok {
 		return tx.QueryRow(ctx, query, args...)
 	}
 
@@ -102,9 +144,16 @@ func (p *postgres) QueryRow(ctx context.Context, query string, args ...interface
 	return p.replicaPool.QueryRow(ctx, query, args...)
 }
 
-func (p *postgres) Exec(ctx context.Context, query string, args ...interface{}) (commandTag pgconn.CommandTag, err error) {
-	tx, ok := txman.ExtractTX(ctx)
-	if ok {
+func (p *postgres) Exec(ctx context.Context, query string, args ...interface{}) (pgconn.CommandTag, error) {
+	if len(p.middlewares) > 0 {
+		var err error
+		ctx, query, args, err = p.apply(ctx, query, args)
+		if err != nil {
+			return pgconn.CommandTag{}, err
+		}
+	}
+
+	if tx, ok := txman.ExtractTX(ctx); ok {
 		return tx.Exec(ctx, query, args...)
 	}
 
@@ -125,4 +174,12 @@ func (p *postgres) Close() {
 	if p.replicaPool != nil {
 		p.replicaPool.Close()
 	}
+}
+
+type errorRow struct {
+	err error
+}
+
+func (r errorRow) Scan(_ ...interface{}) error {
+	return r.err
 }
