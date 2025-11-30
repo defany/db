@@ -24,6 +24,7 @@ type Postgres interface {
 	Exec(ctx context.Context, query string, args ...interface{}) (pgconn.CommandTag, error)
 	BeginTx(ctx context.Context, txOptions pgx.TxOptions) (txman.Tx, error)
 	Pool() *pgxpool.Pool
+	ReplicaPools() []*pgxpool.Pool
 	WithReplicaPool(replicaPool *ReplicaPool) Postgres
 	Close()
 }
@@ -166,6 +167,13 @@ func (p *postgres) BeginTx(ctx context.Context, txOptions pgx.TxOptions) (txman.
 
 func (p *postgres) Pool() *pgxpool.Pool {
 	return p.primary
+}
+
+func (p *postgres) ReplicaPools() []*pgxpool.Pool {
+	out := make([]*pgxpool.Pool, len(p.replicaPool.pools))
+	copy(out, p.replicaPool.pools)
+
+	return out
 }
 
 func (p *postgres) Close() {

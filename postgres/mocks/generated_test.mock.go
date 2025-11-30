@@ -427,6 +427,52 @@ func (_c *MockPostgres_QueryRow_Call) RunAndReturn(run func(ctx context.Context,
 	return _c
 }
 
+// ReplicaPools provides a mock function for the type MockPostgres
+func (_mock *MockPostgres) ReplicaPools() []*pgxpool.Pool {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReplicaPools")
+	}
+
+	var r0 []*pgxpool.Pool
+	if returnFunc, ok := ret.Get(0).(func() []*pgxpool.Pool); ok {
+		r0 = returnFunc()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*pgxpool.Pool)
+		}
+	}
+	return r0
+}
+
+// MockPostgres_ReplicaPools_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReplicaPools'
+type MockPostgres_ReplicaPools_Call struct {
+	*mock.Call
+}
+
+// ReplicaPools is a helper method to define mock.On call
+func (_e *MockPostgres_Expecter) ReplicaPools() *MockPostgres_ReplicaPools_Call {
+	return &MockPostgres_ReplicaPools_Call{Call: _e.mock.On("ReplicaPools")}
+}
+
+func (_c *MockPostgres_ReplicaPools_Call) Run(run func()) *MockPostgres_ReplicaPools_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockPostgres_ReplicaPools_Call) Return(pools []*pgxpool.Pool) *MockPostgres_ReplicaPools_Call {
+	_c.Call.Return(pools)
+	return _c
+}
+
+func (_c *MockPostgres_ReplicaPools_Call) RunAndReturn(run func() []*pgxpool.Pool) *MockPostgres_ReplicaPools_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // WithReplicaPool provides a mock function for the type MockPostgres
 func (_mock *MockPostgres) WithReplicaPool(replicaPool *postgres.ReplicaPool) postgres.Postgres {
 	ret := _mock.Called(replicaPool)
