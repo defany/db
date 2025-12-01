@@ -170,6 +170,10 @@ func (p *postgres) Pool() *pgxpool.Pool {
 }
 
 func (p *postgres) ReplicaPools() []*pgxpool.Pool {
+	if p.replicaPool == nil {
+		return nil
+	}
+
 	out := make([]*pgxpool.Pool, len(p.replicaPool.pools))
 	copy(out, p.replicaPool.pools)
 
