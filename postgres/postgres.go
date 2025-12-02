@@ -18,14 +18,19 @@ type DBRequest struct {
 
 type Middleware func(ctx context.Context, req DBRequest) (context.Context, DBRequest, error)
 
-type Postgres interface {
+type Querier interface {
 	Query(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error)
 	QueryRow(ctx context.Context, query string, args ...interface{}) pgx.Row
+}
+
+type Postgres interface {
+	Querier
 	Exec(ctx context.Context, query string, args ...interface{}) (pgconn.CommandTag, error)
 	BeginTx(ctx context.Context, txOptions pgx.TxOptions) (txman.Tx, error)
 	Pool() *pgxpool.Pool
 	ReplicaPools() []*pgxpool.Pool
 	WithReplicaPool(replicaPool *ReplicaPool) Postgres
+	PickReplicaQuerier(ctx context.Context) Querier
 	Close()
 }
 
@@ -108,20 +113,6 @@ func (p *postgres) Query(ctx context.Context, query string, args ...interface{})
 		return tx.Query(ctx, query, args...)
 	}
 
-	if p.replicaPool == nil {
-		return p.primary.Query(ctx, query, args...)
-	}
-
-	rows, err := p.replicaPool.Query(ctx, query, args...)
-	if err == nil {
-		return rows, nil
-	}
-
-	if !p.fallbackEnabled {
-		return nil, err
-	}
-
-	p.log.Warn("replica query failed, falling back to primary", slog.String("error", err.Error()))
 	return p.primary.Query(ctx, query, args...)
 }
 
@@ -138,11 +129,7 @@ func (p *postgres) QueryRow(ctx context.Context, query string, args ...interface
 		return tx.QueryRow(ctx, query, args...)
 	}
 
-	if p.replicaPool == nil {
-		return p.primary.QueryRow(ctx, query, args...)
-	}
-
-	return p.replicaPool.QueryRow(ctx, query, args...)
+	return p.primary.QueryRow(ctx, query, args...)
 }
 
 func (p *postgres) Exec(ctx context.Context, query string, args ...interface{}) (pgconn.CommandTag, error) {
@@ -178,6 +165,14 @@ func (p *postgres) ReplicaPools() []*pgxpool.Pool {
 	copy(out, p.replicaPool.pools)
 
 	return out
+}
+
+func (p *postgres) PickReplicaQuerier(ctx context.Context) Querier {
+	if p.replicaPool == nil {
+		return nil
+	}
+
+	return p.replicaPool.pickPool(ctx)
 }
 
 func (p *postgres) Close() {
