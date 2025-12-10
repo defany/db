@@ -3,10 +3,12 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log/slog"
 
 	txman "github.com/defany/db/v2/tx_manager"
 	"github.com/defany/db/v3/postgres/cluster"
+	"github.com/defany/slogger/pkg/logger/sl"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -23,8 +25,8 @@ type DBRequest struct {
 type Middleware func(ctx context.Context, req DBRequest) (context.Context, DBRequest, error)
 
 type Querier interface {
-	Query(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error)
-	QueryRow(ctx context.Context, query string, args ...interface{}) pgx.Row
+	Query(ctx context.Context, query string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, query string, args ...any) pgx.Row
 }
 
 type Postgres interface {
@@ -44,30 +46,110 @@ type postgres struct {
 }
 
 func NewPostgres(ctx context.Context, log *slog.Logger, cfg *Config) (Postgres, error) {
-	primary, err := NewClient(ctx, log, cfg)
-	if err != nil {
-		return nil, err
-	}
+	var clusterInstance cluster.ClusterQuerier
+	var primary *pgxpool.Pool
 
-	// Создаем обертку для пула, которая реализует WrappedPool
-	var wrapper cluster.WrappedPool = &wrappedPool{pool: primary}
-	nodeDiscoverer := hasql.NewStaticNodeDiscoverer(
-		hasql.NewNode("primary", wrapper),
-	)
+	if len(cfg.DSN) > 0 {
+		// Создаем клиентов для каждого DSN
+		var pools []*pgxpool.Pool
+		var nodes []*hasql.Node[cluster.WrappedPool]
 
-	clusterInstance, err := cluster.NewCluster[cluster.WrappedPool](
-		cluster.WithClusterNodeChecker(hasql.PostgreSQLChecker),
-		cluster.WithClusterNodePicker(cluster.NewCustomPicker[cluster.WrappedPool]()),
-		cluster.WithClusterNodeDiscoverer(nodeDiscoverer),
-		cluster.WithClusterContext(ctx),
-	)
-	if err != nil {
-		return nil, err
-	}
+		for i, dsn := range cfg.DSN {
+			// Создаем конфигурацию пула из DSN
+			pgxCfg, err := pgxpool.ParseConfig(dsn)
+			if err != nil {
+				log.Error("Unable to parse DSN config", sl.ErrAttr(err))
+				return nil, err
+			}
 
-	err = clusterInstance.Init()
-	if err != nil {
-		return nil, err
+			if cfg.ConnAmount != nil {
+				pgxCfg.MaxConns = *cfg.ConnAmount
+			}
+
+			if cfg.MinConnAmount != nil {
+				pgxCfg.MinConns = *cfg.MinConnAmount
+			}
+
+			if cfg.MaxConnIdleTime != nil {
+				pgxCfg.MaxConnIdleTime = *cfg.MaxConnIdleTime
+			}
+
+			if cfg.MaxConnLifetime != nil {
+				pgxCfg.MaxConnLifetime = *cfg.MaxConnLifetime
+			}
+
+			if cfg.HealthCheckPeriod != nil {
+				pgxCfg.HealthCheckPeriod = *cfg.HealthCheckPeriod
+			}
+
+			pgxCfg.ConnConfig.Tracer = cfg.tracer
+
+			pool, err := pgxpool.NewWithConfig(ctx, pgxCfg)
+			if err != nil {
+				log.Error("failed to create pool from DSN", sl.ErrAttr(err))
+				return nil, err
+			}
+
+			pools = append(pools, pool)
+
+			// Создаем обертку для пула
+			var wrapper cluster.WrappedPool = &wrappedPool{pool: pool}
+
+			// Создаем узел кластера
+			nodeName := fmt.Sprintf("node-%d", i)
+			node := hasql.NewNode(nodeName, wrapper)
+			nodes = append(nodes, node)
+		}
+
+		// Используем первый пул как primary для совместимости
+		primary = pools[0]
+
+		// Создаем статический Discoverer узлов
+		nodeDiscoverer := hasql.NewStaticNodeDiscoverer(nodes...)
+
+		var err error
+		clusterInstance, err = cluster.NewCluster[cluster.WrappedPool](
+			cluster.WithClusterNodeChecker(hasql.PostgreSQLChecker),
+			cluster.WithClusterNodePicker(cluster.NewCustomPicker[cluster.WrappedPool]()),
+			cluster.WithClusterNodeDiscoverer(nodeDiscoverer),
+			cluster.WithClusterContext(ctx),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		err = clusterInstance.Init()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Старая логика - один клиент
+		var err error
+		primary, err = NewClient(ctx, log, cfg)
+		if err != nil {
+			return nil, err
+		}
+
+		// Создаем обертку для пула, которая реализует WrappedPool
+		var wrapper cluster.WrappedPool = &wrappedPool{pool: primary}
+		nodeDiscoverer := hasql.NewStaticNodeDiscoverer(
+			hasql.NewNode("primary", wrapper),
+		)
+
+		clusterInstance, err = cluster.NewCluster[cluster.WrappedPool](
+			cluster.WithClusterNodeChecker(hasql.PostgreSQLChecker),
+			cluster.WithClusterNodePicker(cluster.NewCustomPicker[cluster.WrappedPool]()),
+			cluster.WithClusterNodeDiscoverer(nodeDiscoverer),
+			cluster.WithClusterContext(ctx),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		err = clusterInstance.Init()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	p := &postgres{
@@ -80,7 +162,7 @@ func NewPostgres(ctx context.Context, log *slog.Logger, cfg *Config) (Postgres, 
 	return p, nil
 }
 
-func (p *postgres) apply(ctx context.Context, query string, args []interface{}) (context.Context, string, []interface{}, error) {
+func (p *postgres) apply(ctx context.Context, query string, args []any) (context.Context, string, []any, error) {
 	if len(p.middlewares) == 0 {
 		return ctx, query, args, nil
 	}
@@ -102,7 +184,7 @@ func (p *postgres) apply(ctx context.Context, query string, args []interface{}) 
 	return ctx, req.Query, req.Args, nil
 }
 
-func (p *postgres) Query(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error) {
+func (p *postgres) Query(ctx context.Context, query string, args ...any) (pgx.Rows, error) {
 	if len(p.middlewares) > 0 {
 		var err error
 		ctx, query, args, err = p.apply(ctx, query, args)
@@ -119,7 +201,7 @@ func (p *postgres) Query(ctx context.Context, query string, args ...interface{})
 	return p.cluster.Query(ctx, query, args...)
 }
 
-func (p *postgres) QueryRow(ctx context.Context, query string, args ...interface{}) pgx.Row {
+func (p *postgres) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	if len(p.middlewares) > 0 {
 		var err error
 		ctx, query, args, err = p.apply(ctx, query, args)
@@ -135,7 +217,7 @@ func (p *postgres) QueryRow(ctx context.Context, query string, args ...interface
 	return p.cluster.QueryRow(ctx, query, args...)
 }
 
-func (p *postgres) Exec(ctx context.Context, query string, args ...interface{}) (pgconn.CommandTag, error) {
+func (p *postgres) Exec(ctx context.Context, query string, args ...any) (pgconn.CommandTag, error) {
 	if len(p.middlewares) > 0 {
 		var err error
 		ctx, query, args, err = p.apply(ctx, query, args)

@@ -39,6 +39,14 @@ type Config struct {
 	tracer pgx.QueryTracer
 
 	Middlewares []Middleware
+
+	DSN []string
+}
+
+func NewDSNConfig(dsn []string) *Config {
+	return &Config{
+		DSN: dsn,
+	}
 }
 
 func NewConfig(username, password, host, port, database string) *Config {
@@ -123,10 +131,10 @@ func NewClient(ctx context.Context, log *slog.Logger, cfg *Config) (pool *pgxpoo
 		connectCtx, cancel := context.WithTimeout(ctx, cfg.AcquireTimeout)
 		defer cancel()
 
-		pgxCfg, err := pgxpool.ParseConfig(dsn)
-		if err != nil {
-			log.Error("Unable to parse configs", sl.ErrAttr(err))
-			return err
+		pgxCfg, perr := pgxpool.ParseConfig(dsn)
+		if perr != nil {
+			log.Error("Unable to parse configs", sl.ErrAttr(perr))
+			return perr
 		}
 
 		if cfg.ConnAmount != nil {
