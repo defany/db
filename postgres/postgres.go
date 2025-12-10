@@ -35,8 +35,7 @@ type Postgres interface {
 	Querier
 	Exec(ctx context.Context, query string, args ...interface{}) (pgconn.CommandTag, error)
 	BeginTx(ctx context.Context, txOptions pgx.TxOptions) (txman.Tx, error)
-	Pool() *pgxpool.Pool
-	PoolContext(ctx context.Context) *pgxpool.Pool
+	Pool(ctx context.Context) *pgxpool.Pool
 	Close()
 }
 
@@ -253,20 +252,12 @@ func (p *postgres) BeginTx(ctx context.Context, txOptions pgx.TxOptions) (txman.
 	return p.cluster.BeginTx(ctx, txOptions)
 }
 
-func (p *postgres) Pool() *pgxpool.Pool {
-	// Возвращаем первый пул из списка, который является primary
-	// В случае с DSN - это первый DSN, в случае без DSN - это основной пул
-	if len(p.pools) > 0 {
-		return p.pools[0]
+func (p *postgres) Pool(ctx context.Context) *pgxpool.Pool {
+	wp := p.cluster.Pool(ctx)
+	if wp == nil {
+		return nil
 	}
-	return nil
-}
-
-func (p *postgres) PoolContext(ctx context.Context) *pgxpool.Pool {
-	// Для совместимости с интерфейсом возвращаем тот же пул, что и Pool()
-	// Кластер управляет распределением между узлами, но PoolContext должен возвращать
-	// пул, который может использоваться для выполнения операций в контексте
-	return p.Pool()
+	return wp.Pool()
 }
 
 func (p *postgres) Close() {
