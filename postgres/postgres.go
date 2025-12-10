@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"sync"
 
-	txman "github.com/defany/db/v2/tx_manager"
+	txman "github.com/defany/db/v3/tx_manager"
 	"github.com/defany/db/v3/postgres/cluster"
 	"github.com/defany/slogger/pkg/logger/sl"
 	"github.com/jackc/pgx/v5"
@@ -36,6 +36,7 @@ type Postgres interface {
 	Exec(ctx context.Context, query string, args ...interface{}) (pgconn.CommandTag, error)
 	BeginTx(ctx context.Context, txOptions pgx.TxOptions) (txman.Tx, error)
 	Pool(ctx context.Context) *pgxpool.Pool
+	Pools() []*pgxpool.Pool
 	Close()
 }
 

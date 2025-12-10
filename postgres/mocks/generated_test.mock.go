@@ -7,8 +7,8 @@ package mockpostgres
 import (
 	"context"
 
-	"github.com/defany/db/v2/postgres"
-	"github.com/defany/db/v2/tx_manager"
+	"github.com/defany/db/v3/postgres"
+	"github.com/defany/db/v3/tx_manager"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"

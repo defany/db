@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	txman "github.com/defany/db/v2/tx_manager"
+	txman "github.com/defany/db/v3/tx_manager"
 	slerr "github.com/defany/slogger/pkg/err"
 	"github.com/defany/slogger/pkg/logger/sl"
 	"github.com/gookit/goutil/arrutil"

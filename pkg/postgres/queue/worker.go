@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/defany/db/v2/pkg/postgres"
+	"github.com/defany/db/v3/pkg/postgres"
 	slerr "github.com/defany/slogger/pkg/err"
 	"github.com/defany/slogger/pkg/logger/sl"
 	"github.com/gookit/goutil/arrutil"

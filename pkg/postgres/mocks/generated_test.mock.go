@@ -7,7 +7,7 @@ package mockpostgres
 import (
 	"context"
 
-	"github.com/defany/db/v2/pkg/postgres"
+	"github.com/defany/db/v3/pkg/postgres"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"

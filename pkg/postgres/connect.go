@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/defany/db/v2/pkg/retry"
+	"github.com/defany/db/v3/pkg/retry"
 	"github.com/defany/slogger/pkg/logger/sl"
 
 	"github.com/jackc/pgx/v5"

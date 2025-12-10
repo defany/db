@@ -21,8 +21,6 @@ github.com/containerd/continuity v0.4.3/go.mod h1:F6PTNCKepoxEaXLQp3wDAjygEnImnZ
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/defany/db/v2 v2.2.4 h1:f4PQhZ2W/BE2NAqUgt8oRxiFDTnZkoXuTrCL6mIjqM4=
-github.com/defany/db/v2 v2.2.4/go.mod h1:0JJkXjDl8rYXtDzN3pxqWhk8NAg5qM/1KthE1dWp3LA=
 github.com/defany/slogger v1.1.0 h1:X7/KU6mPCBC1hjzYWTougJeiJ0zmEFouBmAHqr/zMqg=
 github.com/defany/slogger v1.1.0/go.mod h1:Gq2dkMcTOF57xcogrloDSppv63NGE+ofUUKcK1OkO2I=
 github.com/docker/cli v24.0.7+incompatible h1:wa/nIwYFW7BVTGa7SWPVyyXU9lgORqUb1xfI36MSkFg=

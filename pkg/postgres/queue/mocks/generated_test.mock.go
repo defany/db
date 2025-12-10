@@ -7,7 +7,7 @@ package mockqueue
 import (
 	"context"
 
-	"github.com/defany/db/v2/pkg/postgres/queue"
+	"github.com/defany/db/v3/pkg/postgres/queue"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
 	mock "github.com/stretchr/testify/mock"
