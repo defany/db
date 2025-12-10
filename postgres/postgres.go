@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"sync"
 
 	txman "github.com/defany/db/v2/tx_manager"
 	"github.com/defany/db/v3/postgres/cluster"
@@ -287,6 +288,8 @@ func (r errorRow) Scan(_ ...any) error {
 
 type wrappedPool struct {
 	pool *pgxpool.Pool
+	db   *sql.DB
+	once sync.Once
 }
 
 func (w *wrappedPool) Pool() *pgxpool.Pool {
@@ -353,14 +356,19 @@ func (w *wrappedPool) Stat() *pgxpool.Stat {
 	return w.pool.Stat()
 }
 
+func (w *wrappedPool) OpenDB() {
+	w.once.Do(func() {
+		w.db = sql.OpenDB(stdlib.GetPoolConnector(w.pool))
+		w.db.SetMaxIdleConns(0)
+	})
+}
+
 func (w *wrappedPool) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
-	db := sql.OpenDB(stdlib.GetPoolConnector(w.pool))
-	db.SetMaxIdleConns(0)
-	return db.QueryContext(ctx, query, args...)
+	w.OpenDB()
+	return w.db.QueryContext(ctx, query, args...)
 }
 
 func (w *wrappedPool) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
-	db := sql.OpenDB(stdlib.GetPoolConnector(w.pool))
-	db.SetMaxIdleConns(0)
-	return db.QueryRowContext(ctx, query, args...)
+	w.OpenDB()
+	return w.db.QueryRowContext(ctx, query, args...)
 }
