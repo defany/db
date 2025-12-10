@@ -18,6 +18,10 @@ type TestSQLDBWrapper struct {
 	db *sql.DB
 }
 
+func (w *TestSQLDBWrapper) Pool() *pgxpool.Pool {
+	return nil
+}
+
 func (w *TestSQLDBWrapper) Acquire(ctx context.Context) (*pgxpool.Conn, error) {
 	return nil, fmt.Errorf("Acquire not supported for test *sql.DB wrapper")
 }

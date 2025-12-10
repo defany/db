@@ -41,17 +41,16 @@ type Postgres interface {
 type postgres struct {
 	log         *slog.Logger
 	cluster     cluster.ClusterQuerier
-	primary     *pgxpool.Pool
+	pools       []*pgxpool.Pool // Сохраняем все пулы для совместимости с интерфейсом
 	middlewares []Middleware
 }
 
 func NewPostgres(ctx context.Context, log *slog.Logger, cfg *Config) (Postgres, error) {
 	var clusterInstance cluster.ClusterQuerier
-	var primary *pgxpool.Pool
+	var pools []*pgxpool.Pool
 
 	if len(cfg.DSN) > 0 {
 		// Создаем клиентов для каждого DSN
-		var pools []*pgxpool.Pool
 		var nodes []*hasql.Node[cluster.WrappedPool]
 
 		for i, dsn := range cfg.DSN {
@@ -101,9 +100,6 @@ func NewPostgres(ctx context.Context, log *slog.Logger, cfg *Config) (Postgres, 
 			nodes = append(nodes, node)
 		}
 
-		// Используем первый пул как primary для совместимости
-		primary = pools[0]
-
 		// Создаем статический Discoverer узлов
 		nodeDiscoverer := hasql.NewStaticNodeDiscoverer(nodes...)
 
@@ -122,43 +118,51 @@ func NewPostgres(ctx context.Context, log *slog.Logger, cfg *Config) (Postgres, 
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		// Старая логика - один клиент
-		var err error
-		primary, err = NewClient(ctx, log, cfg)
-		if err != nil {
-			return nil, err
-		}
 
-		// Создаем обертку для пула, которая реализует WrappedPool
-		var wrapper cluster.WrappedPool = &wrappedPool{pool: primary}
-		nodeDiscoverer := hasql.NewStaticNodeDiscoverer(
-			hasql.NewNode("primary", wrapper),
-		)
-
-		clusterInstance, err = cluster.NewCluster[cluster.WrappedPool](
-			cluster.WithClusterNodeChecker(hasql.PostgreSQLChecker),
-			cluster.WithClusterNodePicker(cluster.NewCustomPicker[cluster.WrappedPool]()),
-			cluster.WithClusterNodeDiscoverer(nodeDiscoverer),
-			cluster.WithClusterContext(ctx),
-		)
-		if err != nil {
-			return nil, err
+		p := &postgres{
+			log:         log,
+			cluster:     clusterInstance,
+			pools:       pools,
+			middlewares: cfg.Middlewares,
 		}
+		return p, nil
+	}
 
-		err = clusterInstance.Init()
-		if err != nil {
-			return nil, err
-		}
+	// Старая логика - один клиент
+	primary, err := NewClient(ctx, log, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	pools = []*pgxpool.Pool{primary}
+
+	// Создаем обертку для пула, которая реализует WrappedPool
+	var wrapper cluster.WrappedPool = &wrappedPool{pool: primary}
+	nodeDiscoverer := hasql.NewStaticNodeDiscoverer(
+		hasql.NewNode("primary", wrapper),
+	)
+
+	clusterInstance, err = cluster.NewCluster[cluster.WrappedPool](
+		cluster.WithClusterNodeChecker(hasql.PostgreSQLChecker),
+		cluster.WithClusterNodePicker(cluster.NewCustomPicker[cluster.WrappedPool]()),
+		cluster.WithClusterNodeDiscoverer(nodeDiscoverer),
+		cluster.WithClusterContext(ctx),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	err = clusterInstance.Init()
+	if err != nil {
+		return nil, err
 	}
 
 	p := &postgres{
 		log:         log,
 		cluster:     clusterInstance,
-		primary:     primary,
+		pools:       pools,
 		middlewares: cfg.Middlewares,
 	}
-
 	return p, nil
 }
 
@@ -238,29 +242,45 @@ func (p *postgres) BeginTx(ctx context.Context, txOptions pgx.TxOptions) (txman.
 }
 
 func (p *postgres) Pool() *pgxpool.Pool {
-	// Для совместимости с интерфейсом возвращаем оригинальный primary пул
-	// Так как кластер может использовать разные узлы, возвращаем основной пул
-	return p.primary
+	// Возвращаем первый пул из списка, который является primary
+	// В случае с DSN - это первый DSN, в случае без DSN - это основной пул
+	if len(p.pools) > 0 {
+		return p.pools[0]
+	}
+	return nil
 }
 
 func (p *postgres) PoolContext(ctx context.Context) *pgxpool.Pool {
-	return p.primary
+	wpool := p.cluster.Pool(ctx)
+	if wpool == nil {
+		return nil
+	}
+	return wpool.Pool()
 }
 
 func (p *postgres) Close() {
-	p.primary.Close()
+	p.cluster.Close() // Сначала закрываем кластер
+	for _, pool := range p.pools {
+		if pool != nil {
+			pool.Close()
+		}
+	}
 }
 
 type errorRow struct {
 	err error
 }
 
-func (r errorRow) Scan(_ ...interface{}) error {
+func (r errorRow) Scan(_ ...any) error {
 	return r.err
 }
 
 type wrappedPool struct {
 	pool *pgxpool.Pool
+}
+
+func (w *wrappedPool) Pool() *pgxpool.Pool {
+	return w.pool
 }
 
 func (w *wrappedPool) Acquire(ctx context.Context) (*pgxpool.Conn, error) {

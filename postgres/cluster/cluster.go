@@ -32,7 +32,8 @@ type Querier interface {
 type WrappedPool interface {
 	Querier
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	Pool() *pgxpool.Pool
 }
 
 type Wrapper struct {
@@ -54,6 +55,7 @@ func (w *Wrapper) QueryRowContext(ctx context.Context, query string, args ...int
 type ClusterQuerier interface {
 	Querier
 
+	Pool(ctx context.Context) WrappedPool
 	WaitForNodes(ctx context.Context, criterion ...hasql.NodeStateCriterion) error
 	Init(opts ...ClusterOption) error
 }
@@ -291,6 +293,29 @@ func (c *Cluster) Ping(ctx context.Context) error {
 	}
 
 	return err
+}
+
+func (c *Cluster) Pool(ctx context.Context) WrappedPool {
+	var err error
+	var ok bool
+	var db WrappedPool
+
+	retries := -1
+	c.hasql.NodesIter(c.getNodeStateCriterion(ctx))(func(n *hasql.Node[WrappedPool]) bool {
+		ok = true
+		xdb := n.DB()
+		if err = xdb.Ping(ctx); err == nil {
+			db = xdb
+		}
+		retries++
+		return c.options.RetryFunc(ctx, retries, err)
+	})
+
+	if !ok {
+		err = ErrorNoAliveNodes
+	}
+
+	return db
 }
 
 func (c *Cluster) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
