@@ -260,6 +260,10 @@ func (p *postgres) Pool(ctx context.Context) *pgxpool.Pool {
 	return wp.Pool()
 }
 
+func (p *postgres) Pools() []*pgxpool.Pool {
+	return p.pools
+}
+
 func (p *postgres) Close() {
 	p.cluster.Close() // Сначала закрываем кластер
 	for _, pool := range p.pools {
