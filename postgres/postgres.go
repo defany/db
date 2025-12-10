@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"net/url"
 
 	txman "github.com/defany/db/v2/tx_manager"
 	"github.com/defany/db/v3/postgres/cluster"
@@ -50,10 +51,21 @@ func NewPostgres(ctx context.Context, log *slog.Logger, cfg *Config) (Postgres, 
 	var pools []*pgxpool.Pool
 
 	if len(cfg.DSN) > 0 {
-		// Создаем клиентов для каждого DSN
 		var nodes []*hasql.Node[cluster.WrappedPool]
 
 		for i, dsn := range cfg.DSN {
+			// Парсим DSN для получения hostname
+			parsedURL, err := url.Parse(dsn)
+			if err != nil {
+				log.Error("Unable to parse DSN URL", sl.ErrAttr(err))
+				return nil, err
+			}
+
+			hostname := parsedURL.Host
+			if hostname == "" {
+				hostname = fmt.Sprintf("node-%d", i) // fallback имя
+			}
+
 			// Создаем конфигурацию пула из DSN
 			pgxCfg, err := pgxpool.ParseConfig(dsn)
 			if err != nil {
@@ -91,12 +103,11 @@ func NewPostgres(ctx context.Context, log *slog.Logger, cfg *Config) (Postgres, 
 
 			pools = append(pools, pool)
 
-			// Создаем обертку для пула
+			// для интерфейса
 			var wrapper cluster.WrappedPool = &wrappedPool{pool: pool}
 
-			// Создаем узел кластера
-			nodeName := fmt.Sprintf("node-%d", i)
-			node := hasql.NewNode(nodeName, wrapper)
+			// новая нода
+			node := hasql.NewNode(hostname, wrapper)
 			nodes = append(nodes, node)
 		}
 
@@ -139,7 +150,7 @@ func NewPostgres(ctx context.Context, log *slog.Logger, cfg *Config) (Postgres, 
 	// Создаем обертку для пула, которая реализует WrappedPool
 	var wrapper cluster.WrappedPool = &wrappedPool{pool: primary}
 	nodeDiscoverer := hasql.NewStaticNodeDiscoverer(
-		hasql.NewNode("primary", wrapper),
+		hasql.NewNode(cfg.Host, wrapper),
 	)
 
 	clusterInstance, err = cluster.NewCluster[cluster.WrappedPool](
@@ -251,11 +262,10 @@ func (p *postgres) Pool() *pgxpool.Pool {
 }
 
 func (p *postgres) PoolContext(ctx context.Context) *pgxpool.Pool {
-	wpool := p.cluster.Pool(ctx)
-	if wpool == nil {
-		return nil
-	}
-	return wpool.Pool()
+	// Для совместимости с интерфейсом возвращаем тот же пул, что и Pool()
+	// Кластер управляет распределением между узлами, но PoolContext должен возвращать
+	// пул, который может использоваться для выполнения операций в контексте
+	return p.Pool()
 }
 
 func (p *postgres) Close() {
