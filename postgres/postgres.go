@@ -317,6 +317,7 @@ func (w *wrappedPool) BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx
 }
 
 func (w *wrappedPool) Close() {
+	w.db.Close()
 	w.pool.Close()
 }
 

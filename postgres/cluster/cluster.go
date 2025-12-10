@@ -3,12 +3,10 @@ package cluster
 import (
 	"context"
 	"database/sql"
-	"sync"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jackc/pgx/v5/stdlib"
 	"golang.yandex/hasql/v2"
 )
 
@@ -35,29 +33,6 @@ type WrappedPool interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 	Pool() *pgxpool.Pool
-}
-
-type Wrapper struct {
-	pool *pgxpool.Pool
-	db   *sql.DB
-	once sync.Once
-}
-
-func (w *Wrapper) OpenDB() {
-	w.once.Do(func() {
-		w.db = sql.OpenDB(stdlib.GetPoolConnector(w.pool))
-		w.db.SetMaxIdleConns(0)
-	})
-}
-
-func (w *Wrapper) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
-	w.OpenDB()
-	return w.db.QueryContext(ctx, query, args...)
-}
-
-func (w *Wrapper) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
-	w.OpenDB()
-	return w.db.QueryRowContext(ctx, query, args...)
 }
 
 type ClusterQuerier interface {
