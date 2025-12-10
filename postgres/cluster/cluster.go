@@ -3,8 +3,6 @@ package cluster
 import (
 	"context"
 	"database/sql"
-	"reflect"
-	"unsafe"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -12,17 +10,6 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	"golang.yandex/hasql/v2"
 )
-
-func newSQLRowError() *sql.Row {
-	row := &sql.Row{}
-	t := reflect.TypeOf(row).Elem()
-	field, _ := t.FieldByName("err")
-	rowPtr := unsafe.Pointer(row)
-	errFieldPtr := unsafe.Pointer(uintptr(rowPtr) + field.Offset)
-	errPtr := (*error)(errFieldPtr)
-	*errPtr = ErrorNoAliveNodes
-	return row
-}
 
 type Querier interface {
 	Acquire(ctx context.Context) (c *pgxpool.Conn, err error)
