@@ -10,7 +10,7 @@ import (
 	mrand "math/rand"
 	"time"
 
-	slerr "github.com/defany/slogger/pkg/err"
+	slerr "git.portals-mem.com/portals/backend/slogger.git/pkg/err"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	pkgerrors "github.com/pkg/errors"

@@ -7,7 +7,7 @@ import (
 	errs "errors"
 	"fmt"
 
-	slerr "github.com/defany/slogger/pkg/err"
+	slerr "git.portals-mem.com/portals/backend/slogger.git/pkg/err"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/pkg/errors"

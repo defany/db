@@ -13,6 +13,6 @@ template: testify
 template-schema: '{{.Template}}.schema.json'
 
 packages:
-  github.com/defany/db/v2:
+  git.portals-mem.com/portals/backend/db.git/v3:
     config:
       all: true

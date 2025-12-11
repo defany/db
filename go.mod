@@ -1,9 +1,10 @@
-module github.com/defany/db/v2
+module git.portals-mem.com/portals/backend/db.git/v3
 
-go 1.24.4
+go 1.25
 
 require (
-	github.com/defany/slogger v1.1.0
+	git.portals-mem.com/portals/backend/slogger.git v1.1.4
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/gookit/goutil v0.6.18
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/pkg/errors v0.9.1
@@ -13,6 +14,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/otel v1.20.0
 	go.opentelemetry.io/otel/trace v1.20.0
+	golang.yandex/hasql/v2 v2.1.0
 )
 
 require (
