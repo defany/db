@@ -7,7 +7,7 @@ package mocktxman
 import (
 	"context"
 
-	"github.com/defany/db/v3/tx_manager"
+	"git.portals-mem.com/portals/backend/db.git/v3/tx_manager"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	mock "github.com/stretchr/testify/mock"

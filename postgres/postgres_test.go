@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	txman "github.com/defany/db/v3/tx_manager"
+	txman "git.portals-mem.com/portals/backend/db.git/v3/tx_manager"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )

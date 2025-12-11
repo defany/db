@@ -8,9 +8,9 @@ import (
 	"net/url"
 	"sync"
 
-	txman "github.com/defany/db/v3/tx_manager"
-	"github.com/defany/db/v3/postgres/cluster"
-	"github.com/defany/slogger/pkg/logger/sl"
+	txman "git.portals-mem.com/portals/backend/db.git/v3/tx_manager"
+	"git.portals-mem.com/portals/backend/db.git/v3/postgres/cluster"
+	"git.portals-mem.com/portals/backend/slogger.git/pkg/logger/sl"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"

@@ -1,3 +1,5 @@
+git.portals-mem.com/portals/backend/slogger.git v1.1.4 h1:HR0uNPkZnNftyvg8LMdLB12bV+f9E+5jKfqadAzLy24=
+git.portals-mem.com/portals/backend/slogger.git v1.1.4/go.mod h1:zuyg+YVvrVX4OFFdVrKU+1Hn5KGZQ2cMuW4VjIWMVXQ=
 github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 h1:L/gRVlceqvL25UVaW/CKtUDjefjrs0SPonmDGUVOYP0=
 github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161/go.mod h1:xomTg63KZ2rFqZQzSB4Vz2SUXa1BpHTVz9L5PTmPC4E=
 github.com/ClickHouse/ch-go v0.58.2 h1:jSm2szHbT9MCAB1rJ3WuCJqmGLi5UTjlNu+f530UTS0=
@@ -21,8 +23,6 @@ github.com/containerd/continuity v0.4.3/go.mod h1:F6PTNCKepoxEaXLQp3wDAjygEnImnZ
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/defany/slogger v1.1.0 h1:X7/KU6mPCBC1hjzYWTougJeiJ0zmEFouBmAHqr/zMqg=
-github.com/defany/slogger v1.1.0/go.mod h1:Gq2dkMcTOF57xcogrloDSppv63NGE+ofUUKcK1OkO2I=
 github.com/docker/cli v24.0.7+incompatible h1:wa/nIwYFW7BVTGa7SWPVyyXU9lgORqUb1xfI36MSkFg=
 github.com/docker/cli v24.0.7+incompatible/go.mod h1:JLrzqnKDaYBop7H2jaqPtU4hHvMKP+vjCwu2uszcLI8=
 github.com/docker/docker v24.0.7+incompatible h1:Wo6l37AuwP3JaMnZa226lzVXGA3F9Ig1seQen0cKYlM=

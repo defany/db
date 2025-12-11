@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/defany/db/v3/retry"
-	"github.com/defany/slogger/pkg/logger/sl"
+	"git.portals-mem.com/portals/backend/db.git/v3/retry"
+	"git.portals-mem.com/portals/backend/slogger.git/pkg/logger/sl"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"

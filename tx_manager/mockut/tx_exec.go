@@ -3,8 +3,8 @@ package mockut
 import (
 	"context"
 
-	txman "github.com/defany/db/v3/tx_manager"
-	mocktxman "github.com/defany/db/v3/tx_manager/mocks"
+	txman "git.portals-mem.com/portals/backend/db.git/v3/tx_manager"
+	mocktxman "git.portals-mem.com/portals/backend/db.git/v3/tx_manager/mocks"
 	"github.com/stretchr/testify/mock"
 )
 

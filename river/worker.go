@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	txman "github.com/defany/db/v3/tx_manager"
-	slerr "github.com/defany/slogger/pkg/err"
-	"github.com/defany/slogger/pkg/logger/sl"
+	txman "git.portals-mem.com/portals/backend/db.git/v3/tx_manager"
+	slerr "git.portals-mem.com/portals/backend/slogger.git/pkg/err"
+	"git.portals-mem.com/portals/backend/slogger.git/pkg/logger/sl"
 	"github.com/gookit/goutil/arrutil"
 	"github.com/jackc/pgx/v5"
 	"github.com/pkg/errors"

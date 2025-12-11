@@ -1,10 +1,10 @@
-module github.com/defany/db/v3
+module git.portals-mem.com/portals/backend/db.git/v3
 
 go 1.25
 
 require (
+	git.portals-mem.com/portals/backend/slogger.git v1.1.4
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/defany/slogger v1.1.0
 	github.com/gookit/goutil v0.6.18
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/pkg/errors v0.9.1

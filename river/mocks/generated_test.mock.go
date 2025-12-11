@@ -7,7 +7,7 @@ package mockriver
 import (
 	"context"
 
-	"github.com/defany/db/v3/river"
+	"git.portals-mem.com/portals/backend/db.git/v3/river"
 	river0 "github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
 	mock "github.com/stretchr/testify/mock"

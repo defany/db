@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/defany/db/v3/pkg/postgres"
-	slerr "github.com/defany/slogger/pkg/err"
-	"github.com/defany/slogger/pkg/logger/sl"
+	"git.portals-mem.com/portals/backend/db.git/v3/pkg/postgres"
+	slerr "git.portals-mem.com/portals/backend/slogger.git/pkg/err"
+	"git.portals-mem.com/portals/backend/slogger.git/pkg/logger/sl"
 	"github.com/gookit/goutil/arrutil"
 	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
