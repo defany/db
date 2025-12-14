@@ -8,6 +8,7 @@ import (
 	errs "errors"
 	"fmt"
 	mrand "math/rand"
+	"runtime/debug"
 	"time"
 
 	slerr "github.com/defany/slogger/pkg/err"
@@ -59,8 +60,25 @@ func WithIso(lvl pgx.TxIsoLevel) TxOption     { return func(c *TxConfig) { c.Iso
 func ReadOnly(on bool) TxOption               { return func(c *TxConfig) { c.ReadOnly = on } }
 func WithMaxBackoff(d time.Duration) TxOption { return func(c *TxConfig) { c.MaxBackoff = d } }
 
-func New(db Postgres) TxManager {
-	return &txManager{db: db}
+type TxManagerConfig func(manager *txManager)
+
+type txManager struct {
+	db           Postgres
+	panicHandler func(in HandledPanic)
+}
+
+func New(db Postgres, options ...TxManagerConfig) TxManager {
+	manager := &txManager{db: db}
+
+	for _, opt := range options {
+		opt(manager)
+	}
+
+	return manager
+}
+
+func WithPanicHandler(handler func(in HandledPanic)) TxManagerConfig {
+	return func(tm *txManager) { tm.panicHandler = handler }
 }
 
 func ReadCommitted[T any](ctx context.Context, tm TxManager, h GenericHandler[T], opts ...TxOption) (T, error) {
@@ -91,10 +109,6 @@ func ExtractTX(ctx context.Context) (Tx, bool) {
 func ExtractTxQueryKey(ctx context.Context) (string, bool) {
 	k, ok := ctx.Value(txQueryKey{}).(string)
 	return k, ok
-}
-
-type txManager struct {
-	db Postgres
 }
 
 type TxConfig struct {
@@ -187,13 +201,23 @@ func (tm *txManager) execTx(ctx context.Context, cfg TxConfig, h Handler) (err e
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("panic recovered: %w -> %v", err, r)
+
+			if tm.panicHandler != nil {
+				tm.panicHandler(HandledPanic{
+					Err:        err,
+					Stacktrace: string(debug.Stack()),
+				})
+			}
 		}
+
 		if err != nil {
 			if rbErr := tx.Rollback(ctx); rbErr != nil {
 				err = errs.Join(rbErr, err)
 			}
+
 			return
 		}
+
 		err = tx.Commit(ctx)
 	}()
 
