@@ -64,7 +64,7 @@ type TxManagerConfig func(manager *txManager)
 
 type txManager struct {
 	db           Postgres
-	panicHandler func(in HandledPanic)
+	panicHandler func(ctx context.Context, in HandledPanic)
 }
 
 func New(db Postgres, options ...TxManagerConfig) TxManager {
@@ -77,7 +77,7 @@ func New(db Postgres, options ...TxManagerConfig) TxManager {
 	return manager
 }
 
-func WithPanicHandler(handler func(in HandledPanic)) TxManagerConfig {
+func WithPanicHandler(handler func(ctx context.Context, in HandledPanic)) TxManagerConfig {
 	return func(tm *txManager) { tm.panicHandler = handler }
 }
 
@@ -203,7 +203,7 @@ func (tm *txManager) execTx(ctx context.Context, cfg TxConfig, h Handler) (err e
 			err = fmt.Errorf("panic recovered: %w -> %v", err, r)
 
 			if tm.panicHandler != nil {
-				tm.panicHandler(HandledPanic{
+				tm.panicHandler(ctx, HandledPanic{
 					Err:        err,
 					Stacktrace: string(debug.Stack()),
 				})
