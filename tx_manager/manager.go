@@ -147,6 +147,28 @@ func (tm *txManager) run(ctx context.Context, cfg TxConfig, h Handler) error {
 	ctx, runSpan := tracer.Start(ctx, "tx.run", trace.WithSpanKind(trace.SpanKindInternal))
 	defer runSpan.End()
 
+	if _, ok := ExtractTX(ctx); ok {
+		attCtx, attSpan := tracer.Start(ctx, "tx.attempt",
+			trace.WithSpanKind(trace.SpanKindInternal),
+			trace.WithAttributes(
+				attribute.Int("attempt", 0),
+				attribute.String("iso_level", string(cfg.IsoLevel)),
+				attribute.Bool("read_only", cfg.ReadOnly),
+				attribute.Bool("nested", true),
+			),
+		)
+
+		err := tm.execTx(attCtx, cfg, h)
+		if err != nil {
+			attSpan.RecordError(err)
+			attSpan.End()
+			return slerr.WithSource(err)
+		}
+
+		attSpan.End()
+		return nil
+	}
+
 	for attempt := uint(0); attempt <= cfg.Retry; attempt++ {
 		attCtx, attSpan := tracer.Start(ctx, "tx.attempt",
 			trace.WithSpanKind(trace.SpanKindInternal),
@@ -154,6 +176,7 @@ func (tm *txManager) run(ctx context.Context, cfg TxConfig, h Handler) error {
 				attribute.Int("attempt", int(attempt)),
 				attribute.String("iso_level", string(cfg.IsoLevel)),
 				attribute.Bool("read_only", cfg.ReadOnly),
+				attribute.Bool("nested", false),
 			),
 		)
 
